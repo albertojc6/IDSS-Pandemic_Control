@@ -1,15 +1,15 @@
 #%%
 from operator import index
-
+import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 import seaborn as sns
-import missingno as msno
+import missingno as msno # type:ignore
 import seaborn as sns
 
 # READ DATA
-states_daily = pd.read_csv('../data/states_daily.csv')
+states_daily = pd.read_csv('../data/raw/covid_evolution/states_daily.csv')
 
 # UTILITARY FUNCTIONS
 def filter_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -107,4 +107,4 @@ def pipeline_preprocessing(df):
 df = pipeline_preprocessing(states_daily)
 
 #SAVE DATA
-df.to_csv('../preprocessed_data/states_daily_cleaned.csv',index=False)
+df.to_csv('../data/preprocessed/states_daily_cleaned.csv',index=False)

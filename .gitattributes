@@ -1,0 +1,10 @@
+# Apply to all text files:
+* text=auto
+
+# Force Unix LF in these extensions:
+*.py   text eol=lf
+*.ipynb text eol=lf
+*.csv  text eol=lf
+
+# (Or force Windows CRLF if that’s your preference:)
+#*.py   text eol=crlf
