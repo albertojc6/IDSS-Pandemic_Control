@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COVID-19 Statistics Form</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="page-title">COVID-19 Statistics for {{ current_user.state_name }}</div>
+            <a href="{{ url_for('main.dashboard') }}" class="back-link">Back to Dashboard</a>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="flash-message flash-{{ category }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+        
+        <div class="form-card">
+            <h2 class="card-title">Submit COVID-19 Statistics</h2>
+            <p class="submission-date">Submitting statistics for: <strong>{{ current_date.strftime('%B %d, %Y') }}</strong></p>
+            <p class="submission-time">Current time: <strong>{{ current_time.strftime('%H:%M:%S') }}</strong></p>
+            
+            {% if existing_submission %}
+            <div class="alert alert-info">
+                You've already submitted statistics today. Submitting again will update your previous entry.
+            </div>
+            {% endif %}
+            
+            <form method="POST" action="{{ url_for('stats.covid_stats_form') }}">
+                {{ form.hidden_tag() }}
+                
+                <div class="form-group">
+                    <label for="new_cases">New Positive Cases</label>
+                    {{ form.new_cases(class="form-control", placeholder="Number of new cases") }}
+                </div>
+                
+                <div class="form-group">
+                    <label for="total_cases">Total Positive Cases to Date</label>
+                    {{ form.total_cases(class="form-control", placeholder="Total cases") }}
+                </div>
+                
+                <div class="form-group">
+                    <label for="new_deaths">New Deaths</label>
+                    {{ form.new_deaths(class="form-control", placeholder="Number of new deaths") }}
+                </div>
+                
+                <div class="form-group">
+                    <label for="total_deaths">Total Deaths to Date</label>
+                    {{ form.total_deaths(class="form-control", placeholder="Total deaths") }}
+                </div>
+                
+                <div class="form-group">
+                    <label for="new_vaccinations">New Vaccinations</label>
+                    {{ form.new_vaccinations(class="form-control", placeholder="Number of new vaccinations") }}
+                </div>
+                
+                <div class="form-group">
+                    <label for="total_vaccinations">Total Vaccinations to Date</label>
+                    {{ form.total_vaccinations(class="form-control", placeholder="Total vaccinations") }}
+                </div>
+                
+                <div class="form-group">
+                    <label for="current_hospitalizations">Current Hospitalizations</label>
+                    {{ form.current_hospitalizations(class="form-control", placeholder="Number of current hospitalizations") }}
+                </div>
+
+                <div class="form-group">
+                    <label for="icu_patients">Current ICU Patients</label>
+                    {{ form.icu_patients(class="form-control", placeholder="Number of ICU patients") }}
+                </div>
+                
+                <div class="btn-group">
+                    <button type="submit" class="btn">Submit Statistics</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

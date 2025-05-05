@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IDSS Pandemic Management - Dashboard</title>
+    <style>
+        :root {
+            --bg-light: #f5f7fa;
+            --bg-card: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #6b7280;
+            --accent-blue: #5a9bd5;
+            --accent-green: #7bc043;
+            --input-bg: #f9fafb;
+            --input-border: #e5e7eb;
+            --button-bg: #2d389c;
+            --button-hover: #4a8bc5;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+        }
+        
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--input-border);
+        }
+        
+        .welcome-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .welcome-message {
+            font-size: 1.5rem;
+            color: var(--text-primary);
+        }
+        
+        .state-flag {
+            width: 50px;
+            height: 30px;
+            object-fit: cover;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .logout-btn {
+            padding: 8px 16px;
+            background-color: var(--button-bg);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        
+        .logout-btn:hover {
+            background-color: var(--button-hover);
+        }
+        
+        .dashboard-card {
+            background-color: var(--bg-card);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px var(--shadow);
+            margin-bottom: 20px;
+        }
+        
+        .card-title {
+            font-size: 1.2rem;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+        }
+
+        .action-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background-color: var(--button-bg);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: var(--button-hover);
+        }
+    </style>
+    <script>
+        // Dictionary mapping US state names to their two-letter codes
+        const stateCodesMap = {
+            "alabama": "al",
+            "alaska": "ak",
+            "arizona": "az",
+            "arkansas": "ar",
+            "california": "ca",
+            "colorado": "co",
+            "connecticut": "ct",
+            "delaware": "de",
+            "florida": "fl",
+            "georgia": "ga",
+            "hawaii": "hi",
+            "idaho": "id",
+            "illinois": "il",
+            "indiana": "in",
+            "iowa": "ia",
+            "kansas": "ks",
+            "kentucky": "ky",
+            "louisiana": "la",
+            "maine": "me",
+            "maryland": "md",
+            "massachusetts": "ma",
+            "michigan": "mi",
+            "minnesota": "mn",
+            "mississippi": "ms",
+            "missouri": "mo",
+            "montana": "mt",
+            "nebraska": "ne",
+            "nevada": "nv",
+            "new hampshire": "nh",
+            "new jersey": "nj",
+            "new mexico": "nm",
+            "new york": "ny",
+            "north carolina": "nc",
+            "north dakota": "nd",
+            "ohio": "oh",
+            "oklahoma": "ok",
+            "oregon": "or",
+            "pennsylvania": "pa",
+            "rhode island": "ri",
+            "south carolina": "sc",
+            "south dakota": "sd",
+            "tennessee": "tn",
+            "texas": "tx",
+            "utah": "ut",
+            "vermont": "vt",
+            "virginia": "va",
+            "washington": "wa",
+            "west virginia": "wv",
+            "wisconsin": "wi",
+            "wyoming": "wy",
+            "district of columbia": "dc"
+        };
+    </script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <div class="welcome-container">
+                <div class="welcome-message">Welcome, {{ current_user.state_name }}</div>
+                <!-- Flag using flagcdn.com API -->
+                <img 
+                    src="https://flagcdn.com/48x36/us-{{ current_user.state_name|lower|replace(' ', '') }}.png" 
+                    srcset="https://flagcdn.com/96x72/us-{{ current_user.state_name|lower|replace(' ', '') }}.png 2x, 
+                           https://flagcdn.com/144x108/us-{{ current_user.state_name|lower|replace(' ', '') }}.png 3x" 
+                    width="48" 
+                    height="36" 
+                    alt="{{ current_user.state_name }} flag"
+                    class="state-flag"
+                    onerror="this.onerror=null; this.src='https://flagcdn.com/48x36/us.png'; this.srcset='https://flagcdn.com/96x72/us.png 2x, https://flagcdn.com/144x108/us.png 3x';"
+                >
+            </div>
+            <a href="{{ url_for('auth.logout') }}" class="logout-btn">Logout</a>
+        </div>
+        
+        <div class="dashboard-card">
+            <h2 class="card-title">Pandemic Management Dashboard</h2>
+            <p>This is a secure dashboard for the Intelligent Decision Support System for Pandemic Management.</p>
+            <p>You are logged in as the administrator for {{ current_user.state_name }}.</p>
+            <p>Last login: {{ current_user.last_login or 'First login' }}</p>
+            
+            <div class="action-buttons">
+                <a href="{{ url_for('stats.covid_stats_form') }}" class="btn">Submit COVID-19 Statistics</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Function to update the flag URL with proper state code
+        function updateStateFlag() {
+            const stateNameElement = document.querySelector('.welcome-message');
+            if (stateNameElement) {
+                const stateName = stateNameElement.textContent.replace('Welcome, ', '').trim().toLowerCase();
+                const stateCode = stateCodesMap[stateName] || '';
+                
+                if (stateCode) {
+                    const flagImg = document.querySelector('.state-flag');
+                    if (flagImg) {
+                        flagImg.src = `https://flagcdn.com/48x36/us-${stateCode}.png`;
+                        flagImg.srcset = `https://flagcdn.com/96x72/us-${stateCode}.png 2x, https://flagcdn.com/144x108/us-${stateCode}.png 3x`;
+                    }
+                }
+            }
+        }
+        
+        // Call the function when the page loads
+        window.addEventListener('DOMContentLoaded', updateStateFlag);
+    </script>
+</body>
+</html>
