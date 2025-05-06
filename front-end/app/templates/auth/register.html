@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IDSS Pandemic Management - Login</title>
+    <title>IDSS Pandemic Management - Register</title>
     <style>
         :root {
             --bg-light: #f5f7fa;
@@ -26,9 +26,9 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
-            padding: 0;
+            padding: 20px 0;
         }
         
         .container {
@@ -37,10 +37,10 @@
             text-align: center;
         }
         
-        .login-card {
+        .register-card {
             background-color: var(--bg-card);
             border-radius: 20px;
-            padding: 80px;
+            padding: 40px;
             box-shadow: 0 4px 15px var(--shadow);
         }
         
@@ -50,20 +50,15 @@
             color: var(--text-primary);
         }
         
-        .logo {
-            margin: 20px auto;
-            width: 80px;
-            height: 80px;
-        }
-        
         .form-group {
             margin-bottom: 20px;
             position: relative;
+            text-align: left;
         }
         
         .form-control {
             width: 100%;
-            padding: 14px 40px 14px 15px;
+            padding: 14px 15px;
             background-color: var(--input-bg);
             border: 1px solid var(--input-border);
             border-radius: 5px;
@@ -76,15 +71,13 @@
             color: var(--text-secondary);
         }
         
-        .icon {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-secondary);
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
         }
         
-        .btn-signin {
+        .btn-register {
             width: 100%;
             padding: 12px;
             background-color: var(--button-bg);
@@ -96,45 +89,35 @@
             transition: background-color 0.3s;
         }
         
-        .btn-signin:hover {
+        .btn-register:hover {
             background-color: var(--button-hover);
         }
         
-        .heartbeat-logo {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 20px 0;
-        }
-        
-        .heartbeat-logo svg {
-            width: 120px;
-            height: 120px;
-        }
-
-        .flash-messages {
-            margin-bottom: 15px;
+        .error-message {
             color: #e53e3e;
             font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        
+        .login-link {
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .login-link a {
+            color: var(--button-bg);
+            text-decoration: none;
+        }
+        
+        .login-link a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="login-card">
-            <h1>IDSS pandemic management</h1>
-            
-            <div class="heartbeat-logo">
-                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <!-- Heartbeat line -->
-                    <path d="M5,50 L25,50 L30,30 L40,70 L50,40 L60,50 L95,50" stroke="#2d389c" stroke-width="3" fill="none"/>
-                    
-                    <!-- Rounder heart shape -->
-                    <path d="M50,90 C25,70 0,50 0,25 C0,10 10,0 25,0 C35,0 45,10 50,20 C55,10 65,0 75,0 C90,0 100,10 100,25 C100,50 75,70 50,90 Z"                          stroke-width="2" 
-                          fill="#2d389c" 
-                          fill-opacity="0.1"/>
-                </svg>
-            </div>
+        <div class="register-card">
+            <h1>IDSS Pandemic Management - Register</h1>
             
             {% if get_flashed_messages() %}
             <div class="flash-messages">
@@ -144,21 +127,55 @@
             </div>
             {% endif %}
             
-            <form method="POST" action="{{ url_for('auth.login') }}">
+            <form method="POST" action="{{ url_for('auth.register') }}">
                 {{ form.hidden_tag() }}
                 
                 <div class="form-group">
-                    <input type="text" name="username" class="form-control" placeholder="Username" required>
-                    <span class="icon">👤</span>
+                    {{ form.username.label }}
+                    {{ form.username(class="form-control") }}
+                    {% for error in form.username.errors %}
+                    <div class="error-message">{{ error }}</div>
+                    {% endfor %}
                 </div>
                 
                 <div class="form-group">
-                    <input type="password" name="password" class="form-control" placeholder="••••••••••••" required>
-                    <span class="icon">🔒</span>
+                    {{ form.email.label }}
+                    {{ form.email(class="form-control") }}
+                    {% for error in form.email.errors %}
+                    <div class="error-message">{{ error }}</div>
+                    {% endfor %}
                 </div>
                 
-                <button type="submit" class="btn-signin">Sign In</button>
+                <div class="form-group">
+                    {{ form.password.label }}
+                    {{ form.password(class="form-control") }}
+                    {% for error in form.password.errors %}
+                    <div class="error-message">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.password2.label }}
+                    {{ form.password2(class="form-control") }}
+                    {% for error in form.password2.errors %}
+                    <div class="error-message">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.state_name.label }}
+                    {{ form.state_name(class="form-control") }}
+                    {% for error in form.state_name.errors %}
+                    <div class="error-message">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                
+                <button type="submit" class="btn-register">Register</button>
             </form>
+            
+            <div class="login-link">
+                Already have an account? <a href="{{ url_for('auth.login') }}">Login here</a>
+            </div>
         </div>
     </div>
 </body>

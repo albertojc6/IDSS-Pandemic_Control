@@ -1,14 +1,61 @@
 from flask_wtf import FlaskForm
-from wtforms import IntegerField, SubmitField
-from wtforms.validators import DataRequired, NumberRange, Optional
+from wtforms import StringField, SelectField, DateField, SubmitField
+from wtforms.validators import DataRequired, Optional
 
 class CovidStatsForm(FlaskForm):
-    new_cases = IntegerField('New Cases', validators=[DataRequired(), NumberRange(min=0)])
-    total_cases = IntegerField('Total Cases', validators=[DataRequired(), NumberRange(min=0)])
-    new_deaths = IntegerField('New Deaths', validators=[DataRequired(), NumberRange(min=0)])
-    total_deaths = IntegerField('Total Deaths', validators=[DataRequired(), NumberRange(min=0)])
-    new_vaccinations = IntegerField('New Vaccinations', validators=[Optional(), NumberRange(min=0)])
-    total_vaccinations = IntegerField('Total Vaccinations', validators=[Optional(), NumberRange(min=0)])
-    current_hospitalizations = IntegerField('Current Hospitalizations', validators=[Optional(), NumberRange(min=0)])
-    icu_patients = IntegerField('Current ICU Patients', validators=[Optional(), NumberRange(min=0)])
-    submit = SubmitField('Submit Statistics')
+    state = SelectField('State', choices=[
+        ('', 'All States'),
+        ('AL', 'Alabama'),
+        ('AK', 'Alaska'),
+        ('AZ', 'Arizona'),
+        ('AR', 'Arkansas'),
+        ('CA', 'California'),
+        ('CO', 'Colorado'),
+        ('CT', 'Connecticut'),
+        ('DE', 'Delaware'),
+        ('FL', 'Florida'),
+        ('GA', 'Georgia'),
+        ('HI', 'Hawaii'),
+        ('ID', 'Idaho'),
+        ('IL', 'Illinois'),
+        ('IN', 'Indiana'),
+        ('IA', 'Iowa'),
+        ('KS', 'Kansas'),
+        ('KY', 'Kentucky'),
+        ('LA', 'Louisiana'),
+        ('ME', 'Maine'),
+        ('MD', 'Maryland'),
+        ('MA', 'Massachusetts'),
+        ('MI', 'Michigan'),
+        ('MN', 'Minnesota'),
+        ('MS', 'Mississippi'),
+        ('MO', 'Missouri'),
+        ('MT', 'Montana'),
+        ('NE', 'Nebraska'),
+        ('NV', 'Nevada'),
+        ('NH', 'New Hampshire'),
+        ('NJ', 'New Jersey'),
+        ('NM', 'New Mexico'),
+        ('NY', 'New York'),
+        ('NC', 'North Carolina'),
+        ('ND', 'North Dakota'),
+        ('OH', 'Ohio'),
+        ('OK', 'Oklahoma'),
+        ('OR', 'Oregon'),
+        ('PA', 'Pennsylvania'),
+        ('RI', 'Rhode Island'),
+        ('SC', 'South Carolina'),
+        ('SD', 'South Dakota'),
+        ('TN', 'Tennessee'),
+        ('TX', 'Texas'),
+        ('UT', 'Utah'),
+        ('VT', 'Vermont'),
+        ('VA', 'Virginia'),
+        ('WA', 'Washington'),
+        ('WV', 'West Virginia'),
+        ('WI', 'Wisconsin'),
+        ('WY', 'Wyoming')
+    ], validators=[Optional()])
+    start_date = DateField('Start Date', format='%Y-%m-%d', validators=[Optional()])
+    end_date = DateField('End Date', format='%Y-%m-%d', validators=[Optional()])
+    submit = SubmitField('Get Statistics')
