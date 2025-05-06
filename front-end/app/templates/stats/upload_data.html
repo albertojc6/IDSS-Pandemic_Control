@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Upload Pandemic Data</h1>
+    
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Upload CSV File</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="file">Select CSV file with pandemic data</label>
+                            <input type="file" class="form-control-file" id="file" name="file" accept=".csv" required>
+                            <small class="form-text text-muted">
+                                The CSV file should contain columns for: date, state, positive, totalTestResults, death, positiveIncrease, 
+                                negativeIncrease, total, totalTestResultsIncrease, posNeg, deathIncrease, hospitalizedIncrease, 
+                                Dose1_Total, Dose1_Total_pct, Dose1_65Plus, Dose1_65Plus_pct, Complete_Total, Complete_Total_pct, 
+                                Complete_65Plus, Complete_65Plus_pct
+                            </small>
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-3">Upload</button>
+                        <a href="{{ url_for('stats.data_management') }}" class="btn btn-secondary mt-3">Cancel</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

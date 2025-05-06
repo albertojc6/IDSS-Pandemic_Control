@@ -1,12 +1,48 @@
 # IDSS Pandemic Management System
 
-## Running the Application
+## Setup and Running the Application
 
-To run the application:
+1. First, ensure you have all required dependencies installed:
+```bash
+pip install -r requirements.txt
+```
 
-\`\`\`
+2. Initialize the database:
+```bash
+flask init-db
+```
+
+3. Create an admin user (optional, defaults shown):
+```bash
+flask create-admin --username admin --password password --email admin@example.com --state "New York"
+```
+
+4. Generate sample pandemic data (optional, defaults to 30 days):
+```bash
+flask generate-data --days 30
+```
+
+5. Run the application:
+```bash
 python run.py
-\`\`\`
+```
+
+The application will be available at `http://localhost:5000`
+
+## CLI Commands
+
+The application provides several CLI commands for setup and maintenance:
+
+- `flask init-db`: Creates the database tables
+- `flask create-admin`: Creates an admin user with specified credentials
+  - Options:
+    - `--username`: Admin username (default: 'admin')
+    - `--password`: Admin password (default: 'password')
+    - `--email`: Admin email (default: 'admin@example.com')
+    - `--state`: Admin state (default: 'New York')
+- `flask generate-data`: Generates sample pandemic data
+  - Options:
+    - `--days`: Number of days to generate data for (default: 30)
 
 ## Project Structure
 
