@@ -1,0 +1,3 @@
+que tot sigui una classe amb 2 metodes
+1- retorni variables importants (theta, pi, etc.)
+2- Matriu de recomanacions per estat (confinament)
