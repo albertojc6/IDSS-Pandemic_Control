@@ -91,6 +91,46 @@
             color: var(--text-primary);
         }
         
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            background-color: var(--button-bg);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn:hover {
+            background-color: var(--button-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn-primary {
+            background-color: var(--button-bg);
+        }
+        
+        .btn-secondary {
+            background-color: #4a5568;
+        }
+        
+        .btn-icon {
+            font-size: 1.1rem;
+        }
+        
         .state-flag {
             width: 50px;
             height: 30px;
@@ -136,25 +176,6 @@
             right: 20px;
         }
         
-        .btn {
-            padding: 8px 16px;
-            background-color: var(--button-bg);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            text-decoration: none;
-            font-size: 0.95rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .btn:hover {
-            background-color: var(--button-hover);
-            transform: translateY(-1px);
-            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
-        }
-        
         /* Map styles */
         .map-container {
             position: relative;
@@ -170,6 +191,7 @@
         .state {
             stroke: #fff;
             stroke-width: 0.5px;
+            transition: all 0.3s ease;
         }
         
         .state:hover {
@@ -193,9 +215,22 @@
             fill: #F44336;
         }
         
+        .state-confined {
+            stroke: #9C27B0;
+            stroke-width: 2px;
+            stroke-dasharray: 4;
+            animation: dash 1s linear infinite;
+        }
+        
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -8;
+            }
+        }
+        
         .tooltip {
             position: absolute;
-            background-color: rgba(255, 255, 255, 0.9);
+            background-color: rgba(255, 255, 255, 0.95);
             border: 1px solid #ddd;
             border-radius: 4px;
             padding: 10px;
@@ -205,32 +240,145 @@
             z-index: 1000;
         }
         
+        .tooltip-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .tooltip-confined {
+            color: #9C27B0;
+            font-weight: bold;
+            margin-top: 5px;
+            padding: 3px 8px;
+            background-color: rgba(156, 39, 176, 0.1);
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 6px;
+            padding: 8px 12px;
+            box-shadow: 0 2px 5px var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 100;
+        }
+        
+        .legend-title {
+            font-size: 0.85rem;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+        
+        .legend-items {
+            display: flex;
+            gap: 12px;
+            flex-wrap: nowrap;
+            align-items: center;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+        
+        .legend-label {
+            font-size: 0.8rem;
+        }
+        
+        .legend-item.confined {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-left: 5px;
+            padding-left: 10px;
+            border-left: 1px solid var(--input-border);
+        }
+        
+        .legend-color.confined {
+            width: 20px;
+            height: 20px;
+            border: 2px dashed #9C27B0;
+            background: none;
+            animation: dash 1s linear infinite;
+            border-radius: 3px;
+        }
+        
         /* Stats section */
         .stats-container {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
+            gap: 12px;
+            margin-bottom: 15px;
         }
         
         .stat-box {
             background-color: var(--bg-card);
-            border-radius: 10px;
-            padding: 15px;
+            border-radius: 8px;
+            padding: 12px;
             box-shadow: 0 2px 5px var(--shadow);
             text-align: center;
         }
         
         .stat-title {
-            font-size: 0.9rem;
+            font-size: 1.1rem;
             color: var(--text-secondary);
             margin-bottom: 8px;
+            font-weight: 600;
         }
         
-        .stat-value {
-            font-size: 1.6rem;
+        .stat-main {
+            font-size: 1.2rem;
             font-weight: bold;
             color: var(--text-primary);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .stat-secondary {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            opacity: 0.9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .stat-label {
+            font-size: 0.7rem;
+            color: white;
+            font-weight: 500;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        
+        .stat-main .stat-label {
+            background-color: #2d389c;
+        }
+        
+        .stat-secondary .stat-label {
+            background-color: #6b7280;
         }
         
         .stat-box.total {
@@ -249,51 +397,6 @@
             border-top: 4px solid #7f8c8d;
         }
         
-        /* Legend */
-        .legend {
-            position: absolute;
-            bottom: 15px;
-            right: 15px;
-            background-color: rgba(255, 255, 255, 0.9);
-            border-radius: 6px;
-            padding: 6px 10px;
-            box-shadow: 0 2px 5px var(--shadow);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            max-width: 60%;
-            z-index: 100;
-        }
-        
-        .legend-title {
-            font-size: 0.85rem;
-            margin-right: 5px;
-            white-space: nowrap;
-            font-weight: 600;
-        }
-        
-        .legend-items {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-        
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .legend-color {
-            width: 12px;
-            height: 12px;
-            border-radius: 3px;
-        }
-        
-        .legend-label {
-            font-size: 0.8rem;
-        }
-
         .map-title {
             margin-bottom: 8px;
             font-size: 1.1rem;
@@ -319,7 +422,20 @@
                     onerror="this.onerror=null; this.src='https://flagcdn.com/48x36/us.png'; this.srcset='https://flagcdn.com/96x72/us.png 2x, https://flagcdn.com/144x108/us.png 3x';"
                 >
             </div>
-            <a href="{{ url_for('auth.logout') }}" class="logout-btn">Logout</a>
+            <div class="header-actions">
+                <a href="{{ url_for('stats.covid_stats_form') }}" class="btn btn-primary">
+                    <span class="btn-icon">📊</span>
+                    Submit Statistics
+                </a>
+                <a href="{{ url_for('main.decision_support') }}" class="btn btn-secondary">
+                    <span class="btn-icon">🎯</span>
+                    Decision Support
+                </a>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-secondary">
+                    <span class="btn-icon">🚪</span>
+                    Logout
+                </a>
+            </div>
         </div>
         
         {% if national_data %}
@@ -328,7 +444,7 @@
             <div class="dashboard-left">
                 <div class="dashboard-info">
                     <h2>Pandemic Management Dashboard</h2>
-                    <p>You are logged in as the administrator for {{ current_user.state_name }}.</p>
+                    <p>A comprehensive system for monitoring pandemic metrics and making data-driven decisions to control the spread in your state.</p>
                     <p>Last login: {{ current_user.last_login or 'First login' }}</p>
                     <div class="action-buttons">
                         <a href="{{ url_for('stats.upload_data') }}" class="btn">Submit COVID-19 Statistics</a>
@@ -336,7 +452,7 @@
                 </div>
                 
                 <div class="dashboard-card">
-                    <h3 class="map-title">COVID-19 Risk Level by State</h3>
+                    <h3 class="map-title">Pandemic Risk Level by State</h3>
                     <div class="map-container">
                         <div id="us-map"></div>
                         
@@ -371,25 +487,53 @@
                 <div class="stats-container">
                     <div class="stat-box total">
                         <div class="stat-title">Total Cases</div>
-                        <div class="stat-value">{{ "{:,}".format(national_data.total_cases) }}</div>
+                        <div class="stat-main">
+                            {{ "{:,}".format(national_data.total_cases) }}
+                            <span class="stat-label">USA</span>
+                        </div>
+                        <div class="stat-secondary">
+                            {{ "{:,}".format(national_data.state_total_cases) }}
+                            <span class="stat-label">{{ current_user.state_name[:2]|upper }}</span>
+                        </div>
                     </div>
                     <div class="stat-box active">
                         <div class="stat-title">Active Cases</div>
-                        <div class="stat-value">{{ "{:,}".format(national_data.active_cases) }}</div>
+                        <div class="stat-main">
+                            {{ "{:,}".format(national_data.active_cases) }}
+                            <span class="stat-label">USA</span>
+                        </div>
+                        <div class="stat-secondary">
+                            {{ "{:,}".format(national_data.state_active_cases) }}
+                            <span class="stat-label">{{ current_user.state_name[:2]|upper }}</span>
+                        </div>
                     </div>
                     <div class="stat-box recovered">
                         <div class="stat-title">Recovered</div>
-                        <div class="stat-value">{{ "{:,}".format(national_data.recovered) }}</div>
+                        <div class="stat-main">
+                            {{ "{:,}".format(national_data.recovered) }}
+                            <span class="stat-label">USA</span>
+                        </div>
+                        <div class="stat-secondary">
+                            {{ "{:,}".format(national_data.state_recovered) }}
+                            <span class="stat-label">{{ current_user.state_name[:2]|upper }}</span>
+                        </div>
                     </div>
                     <div class="stat-box deaths">
                         <div class="stat-title">Deaths</div>
-                        <div class="stat-value">{{ "{:,}".format(national_data.deaths) }}</div>
+                        <div class="stat-main">
+                            {{ "{:,}".format(national_data.deaths) }}
+                            <span class="stat-label">USA</span>
+                        </div>
+                        <div class="stat-secondary">
+                            {{ "{:,}".format(national_data.state_deaths) }}
+                            <span class="stat-label">{{ current_user.state_name[:2]|upper }}</span>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Chart for daily cases -->
                 <div class="dashboard-card">
-                    <h3>Last Month Cases Trend - United States</h3>
+                    <h3>Last Month New Cases Trend</h3>
                     <canvas id="casesChart" height="200"></canvas>
                 </div>
             </div>
@@ -448,20 +592,72 @@
                 type: 'line',
                 data: {
                     labels: serverData.national_daily_cases.map(item => item.date),
-                    datasets: [{
-                        label: 'New Cases',
-                        data: serverData.national_daily_cases.map(item => item.cases),
-                        backgroundColor: 'rgba(45, 56, 156, 0.2)',
-                        borderColor: '#2d389c',
-                        borderWidth: 2,
-                        tension: 0.4
-                    }]
+                    datasets: [
+                        {
+                            label: 'USA New Cases',
+                            data: serverData.national_daily_cases.map(item => item.usa_cases),
+                            backgroundColor: 'rgba(45, 56, 156, 0.1)',
+                            borderColor: '#2d389c',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: '{{ current_user.state_name[:2]|upper }} New Cases',
+                            data: serverData.national_daily_cases.map(item => item.state_cases),
+                            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                            borderColor: '#4bc0c0',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            align: 'end'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('en-US').format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
                     scales: {
                         y: {
-                            beginAtZero: true
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'New Cases'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return new Intl.NumberFormat('en-US').format(value);
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
                         }
                     }
                 }
@@ -521,8 +717,12 @@
                     .attr('class', d => {
                         const stateName = getStateName(d.id);
                         if (stateName in covidData) {
-                            const riskLevel = covidData[stateName].risk_level.toLowerCase();
-                            return `state state-${riskLevel}`;
+                            let classes = ['state'];
+                            classes.push(`state-${covidData[stateName].risk_level.toLowerCase()}`);
+                            if (covidData[stateName].is_confined) {
+                                classes.push('state-confined');
+                            }
+                            return classes.join(' ');
                         }
                         return 'state';
                     })
@@ -532,13 +732,22 @@
                         if (stateName in covidData) {
                             tooltip.transition()
                                 .duration(200)
-                                .style('opacity', .9);
+                                .style('opacity', .95);
+                            
+                            const data = covidData[stateName];
+                            const confinedStatus = data.is_confined ? 
+                                '<div class="tooltip-confined">🚫 Currently Confined</div>' : '';
+                            
                             tooltip.html(`
-                                <strong>${stateName}</strong><br>
-                                Total Cases: ${covidData[stateName].total_cases.toLocaleString()}<br>
-                                Active Cases: ${covidData[stateName].active_cases.toLocaleString()}<br>
-                                Deaths: ${covidData[stateName].deaths.toLocaleString()}<br>
-                                Risk Level: ${covidData[stateName].risk_level}
+                                <div class="tooltip-header">
+                                    ${stateName}
+                                    ${data.is_confined ? '🚫' : ''}
+                                </div>
+                                ${confinedStatus}
+                                Total Cases: ${data.total_cases.toLocaleString()}<br>
+                                Active Cases: ${data.active_cases.toLocaleString()}<br>
+                                Deaths: ${data.deaths.toLocaleString()}<br>
+                                Risk Level: ${data.risk_level}
                             `)
                                 .style('left', (event.pageX + 10) + 'px')
                                 .style('top', (event.pageY - 28) + 'px');
@@ -565,6 +774,31 @@
                         const stateName = getStateName(d.id);
                         return stateName in covidData ? covidData[stateName].abbr : '';
                     });
+
+                // Add confined state to legend
+                const legend = d3.select('.legend-items');
+                legend.html(`
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #4CAF50;"></div>
+                        <div class="legend-label">Low</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #FFC107;"></div>
+                        <div class="legend-label">Medium</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #FF9800;"></div>
+                        <div class="legend-label">High</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #F44336;"></div>
+                        <div class="legend-label">Critical</div>
+                    </div>
+                    <div class="legend-item confined">
+                        <div class="legend-color confined"></div>
+                        <div class="legend-label">Confined</div>
+                    </div>
+                `);
             });
         }
     </script>
