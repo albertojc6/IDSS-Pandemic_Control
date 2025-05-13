@@ -148,6 +148,17 @@ label {
   transition: background-color 0.2s;
 }
 
+.btn-gray {
+  background-color: #6b7280; 
+  color: white;
+  border: none;
+}
+
+.btn-gray:hover {
+  background-color: #5a6268;  
+  color: white;
+}
+
 .btn:hover,
 .btn-signin:hover {
   background-color: var(--button-hover);

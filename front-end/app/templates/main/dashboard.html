@@ -331,7 +331,7 @@
                     <p>You are logged in as the administrator for {{ current_user.state_name }}.</p>
                     <p>Last login: {{ current_user.last_login or 'First login' }}</p>
                     <div class="action-buttons">
-                        <a href="{{ url_for('stats.covid_stats_form') }}" class="btn">Submit COVID-19 Statistics</a>
+                        <a href="{{ url_for('stats.upload_data') }}" class="btn">Submit COVID-19 Statistics</a>
                     </div>
                 </div>
                 
