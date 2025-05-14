@@ -1,5 +1,6 @@
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
+from prophet.serialize import model_to_json, model_from_json
 from sklearn.preprocessing import MinMaxScaler
 from scipy.cluster.hierarchy import cophenet
 from scipy.spatial.distance import pdist
@@ -88,6 +89,8 @@ class ProphetTrainer():
         # Select additional regressors with structural data information
         self.est_regressors = self.df_train.drop(columns=(['ds', 'state'] + self.target_lst)).columns.tolist()
 
+        self.model_dir = Path(__file__).parent.parent / "models"
+        self.model_dir.mkdir(parents=True, exist_ok=True)
 
     def cluster_states(self):
         """
@@ -216,7 +219,17 @@ class ProphetTrainer():
         # Iterate through targets and clusters
         for tget in self.target_lst:
             clusters = cluster_df[tget].unique()
-            for clust in clusters[:1]:
+            for clust in clusters:
+                model_key = f"{tget}_cluster{clust}"
+                model_path = self.model_dir / f"{model_key}.json"
+                # Check if the model exists
+                if model_path.exists():
+                    print(f"Loading existing model: {model_key}")
+                    with open(model_path, 'r') as fin:
+                        model = model_from_json(fin.read())
+                    self.models[model_key] = model
+                    continue
+                # Train if it doesn't exist
                 # States that belong to clust for tget
                 sts_clust = cluster_df[cluster_df[tget] == clust]['state'].unique()
 
@@ -238,70 +251,126 @@ class ProphetTrainer():
                 
                 # Train the Prophet model
                 model.fit(df_prophet)
-                print(f"Model trained for {tget} & cluster {clust}")
-
-                # Store trained model
-                self.models[f'{tget}_cluster{clust}'] = model
-
+                print(f"Modelo entrenado para {model_key}")
+                # Guardar modelo
+                with open(model_path, 'w') as fout:
+                    fout.write(model_to_json(model))
+                
+                self.models[model_key] = model
 
     def eval_prophet(self):
         """
-        Evaluates the performance of the whole training
+        Evaluate performance using the test set (comparison with real data)
         """
-        # Get the state-cluster dataframe so as to group states timeseries
-        cluster_df = self.cluster_df
-
-        for tget in self.target_lst:
-            clusters = cluster_df[tget].unique()
-            for clust in clusters[:1]:
-                # Pick the model
-                model = self.models[f'{tget}_cluster{clust}']
-
-                # States that belong to clust for tget
-                sts_clust = cluster_df[cluster_df[tget] == clust]['state'].unique()
+        metrics = []
         
-                for st in sts_clust:
-                    columns = ['ds', tget] + self.est_regressors
+        for state in self.states:
+            state_test = self.df_test[self.df_test['state'] == state]
+            
+            if state_test.empty:
+                continue
+            
+            # Test dates (first 7 days)
+            test_dates = state_test['ds'].unique()[:7]
+            df_test_7d = state_test[state_test['ds'].isin(test_dates)]
+            
+            for target in self.target_lst:
+                cluster = self.cluster_df.loc[self.cluster_df['state'] == state, target].values[0]
+                model_key = f"{target}_cluster{cluster}"
+                
+                if model_key not in self.models:
+                    continue
+                
+                # Predict
+                future = self._prepare_future(state, test_dates[0])
+                forecast = self.models[model_key].predict(future)
+                pred_sum = forecast['yhat'].sum()
+                
+                # Calculate metrics
+                y_true = df_test_7d[target].sum()
+                mae = mean_absolute_error([y_true], [pred_sum])
+                rmse = np.sqrt(mae)
+                mape = (abs(y_true - pred_sum)/y_true*100) if y_true != 0 else 0.0
 
-                    # Get the desired dataframe: from that state data and selected cols
-                    df_st = self.df_test[self.df_test['state'] == st]
-                    df_test = df_st[columns].rename(columns={tget: 'y'})
+                metrics.append({
+                    'target': target,
+                    'state': state,
+                    'MAE': mae,
+                    'RMSE': rmse,
+                    'MAPE': mape
+                })
+        
+        # Show results
+        print("\nPerformance evaluation:")
+        for m in metrics:
+            print(
+                f"{m['target']} & {m['state']}, "
+                f"MAE: {m['MAE']:.2f}, "
+                f"RMSE: {m['RMSE']:.2f}, "
+                f"MAPE: {m['MAPE']:.2f}%"
+            )
 
-                    # Last known value of regressors would be the prediction for that regressor: static data!
-                    last_known = df_test[self.est_regressors].iloc[-1]
-                    
-                    # Generate prediction dataset
-                    start_date = df_test['ds'].min() + timedelta(days=1)
-                    future_days = pd.DataFrame({'ds': pd.date_range(start=start_date, periods=7, freq='D')})
+    def generate_prediction_matrix(self):
+        """
+        Generates the matrix of future predictions (7 days after the last training data)
+        """
+        prediction_matrix = []
+        
+        for state in self.states:
+            state_data = {'state': state}
+            
+            # Prepare for the future (7 days post-training)
+            last_train_date = pd.to_datetime(
+                self.df_train[self.df_train['state'] == state]['ds'].max()
+            )
+            future_dates = pd.date_range(
+                start=last_train_date + timedelta(days=1),
+                periods=7,
+                freq='D'
+            )
+            
+            future = self._prepare_future(state, future_dates[0])
+            
+            for target in self.target_lst:
+                cluster = self.cluster_df.loc[self.cluster_df['state'] == state, target].values[0]
+                model_key = f"{target}_cluster{cluster}"
+                
+                if model_key not in self.models:
+                    state_data[target] = None
+                    continue
+                
+                forecast = self.models[model_key].predict(future)
+                state_data[target] = forecast['yhat'].sum()
+            
+            prediction_matrix.append(state_data)
+        
+        # Save and Return
+        output_path = self.model_dir.parent / "output_modelos/predictions_matrix.csv"
+        pd.DataFrame(prediction_matrix).to_csv(output_path, index=False)
+        print(f"\nPrediction matrix saved in: {output_path}")
+        
+        return prediction_matrix
 
-                    # Repeat last known regressor's values
-                    future_reg = pd.DataFrame([last_known.values] * 7, columns=self.est_regressors).reset_index(drop=True)
-                    
-                    # Merge future dataframes
-                    future = pd.concat([future_days, future_reg], axis=1)
-
-                    # Predict
-                    forecast = model.predict(future)
-
-                    prediccions = forecast[['ds', 'yhat']].copy()
-                    prediccions['state'], prediccions['target'] = st, tget
-
-                    # Calculate the error between predictions and ground-truth
-                    comparacio = pd.merge(prediccions, df_st, on=['ds', 'state'])
-                        
-                    y_true = comparacio[tget]
-                    y_pred = comparacio['yhat']
-                    
-                    # Mètriques
-                    mae = mean_absolute_error(y_true, y_pred)
-                    rmse = np.sqrt(mae)
-                    mape = (abs((y_true - y_pred) / y_true).mean()) * 100
-
-                    print(f"{tget} & {st}, MAE: {mae:.2f}, RMSE: {rmse:.2f}, MAPE: {mape:.2f}%")
-                    
+    def _prepare_future(self, state: str, start_date: pd.Timestamp) -> pd.DataFrame:
+        """
+        Helper to prepare future data (reusable in both methods)
+        """
+        state_train = self.df_train[self.df_train['state'] == state]
+        last_regressors = state_train[self.est_regressors].iloc[-1].values
+        
+        future_dates = pd.date_range(
+            start=start_date,
+            periods=7,
+            freq='D'
+        )
+        future = pd.DataFrame({'ds': future_dates})
+        future_reg = pd.DataFrame([last_regressors]*7, columns=self.est_regressors)
+        
+        return pd.concat([future, future_reg], axis=1)
 
 if __name__ == "__main__":
     trainer = ProphetTrainer()
     trainer.cluster_states()
     trainer.train_prophet()
     trainer.eval_prophet()
+    trainer.generate_prediction_matrix()
