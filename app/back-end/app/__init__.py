@@ -1,9 +1,11 @@
 from flask import Flask, redirect, url_for
 from config import Config
-from app.extensions import db, login_manager, bcrypt
+from app.extensions import db, login_manager, bcrypt, migrate
 import pandas as pd
 from app.models import PandemicData, User
 import os
+from sqlalchemy import text
+from pathlib import Path
 
 def reset_database(app):
     """
@@ -54,9 +56,10 @@ def load_initial_data(app):
         if PandemicData.query.first() is None:
             try:
                 # Get the path to the CSV file
-                csv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'daily_covidMatrix.csv')
+                base_path = Path(__file__).parent.parent
+                csv_path = base_path / "data" / "preprocessed" / "dataMatrix" / "daily_covidMatrix.csv"
                 
-                if os.path.exists(csv_path):
+                if csv_path.exists():
                     # Read the CSV file
                     df = pd.read_csv(csv_path)
                     
@@ -120,6 +123,7 @@ def create_app(config_class=Config):
     
     # Initialize Flask extensions
     db.init_app(app)  # Database
+    migrate.init_app(app, db)
     login_manager.init_app(app)  # User authentication
     bcrypt.init_app(app)  # Password hashing
     
@@ -141,6 +145,25 @@ def create_app(config_class=Config):
         db.create_all()
         # Load initial data from CSV
         load_initial_data(app)
+        
+        # Create predictions database if it doesn't exist
+        try:
+            # Check if predictions table exists
+            db.session.execute(text("SELECT 1 FROM prediction LIMIT 1"))
+        except Exception:
+            # Create predictions table
+            db.session.execute(text("""
+                CREATE TABLE IF NOT EXISTS prediction (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    state VARCHAR(2) NOT NULL,
+                    date DATE NOT NULL,
+                    positive_increase_sum INTEGER NOT NULL,
+                    hospitalized_increase_sum INTEGER NOT NULL,
+                    death_increase_sum INTEGER NOT NULL,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            db.session.commit()
     
     # Root route that redirects to dashboard
     @app.route('/')

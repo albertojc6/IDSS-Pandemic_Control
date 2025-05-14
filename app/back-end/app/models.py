@@ -87,6 +87,33 @@ class PandemicData(db.Model):
             'Complete_65Plus_pct': self.Complete_65Plus_pct
         }
 
+class Prediction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    state = db.Column(db.String(2), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    
+    # Target variables (7-day sums)
+    positive_increase_sum = db.Column(db.Integer, nullable=False)
+    hospitalized_increase_sum = db.Column(db.Integer, nullable=False)
+    death_increase_sum = db.Column(db.Integer, nullable=False)
+    
+    # Metadata
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Prediction {self.state} {self.date}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'state': self.state,
+            'date': self.date.isoformat(),
+            'positive_increase_sum': self.positive_increase_sum,
+            'hospitalized_increase_sum': self.hospitalized_increase_sum,
+            'death_increase_sum': self.death_increase_sum,
+            'created_at': self.created_at.isoformat()
+        }
+
 @login_manager.user_loader
 def load_user(user_id):
     """
