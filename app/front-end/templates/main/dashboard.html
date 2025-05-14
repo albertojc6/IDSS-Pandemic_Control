@@ -251,11 +251,15 @@
         .tooltip-confined {
             color: #9C27B0;
             font-weight: bold;
-            margin-top: 5px;
+            margin: 5px 0;
             padding: 3px 8px;
             background-color: rgba(156, 39, 176, 0.1);
             border-radius: 4px;
-            display: inline-block;
+            display: block;
+        }
+        
+        .tooltip-stats {
+            margin-top: 5px;
         }
         
         .legend {
@@ -442,6 +446,124 @@
             color: #666;
             margin-top: 20px;
             font-style: italic;
+        }
+
+        .lockdown-notification {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 10px var(--shadow);
+            max-width: 300px;
+            z-index: 1000;
+            border-left: 4px solid #9C27B0;
+            animation: slideIn 0.5s ease-out;
+            transition: all 0.3s ease;
+            min-height: 100px;
+        }
+
+        .lockdown-notification.collapsed {
+            width: 8px;
+            padding: 0;
+            background-color: transparent;
+            box-shadow: none;
+            cursor: pointer;
+            min-height: 100px;
+            border-radius: 0;
+            border-right: none;
+            border-top: none;
+            border-bottom: none;
+            border-left-width: 8px;
+        }
+
+        .lockdown-notification.collapsed .notification-content {
+            display: none;
+        }
+
+        .lockdown-notification.collapsed .close-button {
+            display: none;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            transition: color 0.3s ease;
+        }
+
+        .close-button:hover {
+            color: #ff0000;
+        }
+
+        .close-button::before,
+        .close-button::after {
+            content: '';
+            position: absolute;
+            width: 15px;
+            height: 2px;
+            background-color: currentColor;
+            transform-origin: center;
+        }
+
+        .close-button::before {
+            transform: rotate(45deg);
+        }
+
+        .close-button::after {
+            transform: rotate(-45deg);
+        }
+
+        .notification-content {
+            transition: opacity 0.3s ease;
+        }
+
+        .lockdown-notification h4 {
+            margin: 0 0 10px 0;
+            color: #9C27B0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .lockdown-notification p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .lockdown-states {
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+
+        .lockdown-states span {
+            display: inline-block;
+            background-color: rgba(156, 39, 176, 0.1);
+            color: #9C27B0;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin: 2px;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
     </style>
     <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -713,6 +835,41 @@
             const width = document.getElementById('us-map').clientWidth;
             const height = 400;
 
+            // Add lockdown notification
+            const confinedStates = Object.entries(covidData)
+                .filter(([_, data]) => data.is_confined)
+                .map(([state, _]) => state);
+
+            if (confinedStates.length > 0) {
+                const notification = d3.select('.map-container')
+                    .append('div')
+                    .attr('class', 'lockdown-notification')
+                    .html(`
+                        <div class="close-button" title="Close notification"></div>
+                        <div class="notification-content">
+                            <h4>🚫 States in Lockdown</h4>
+                            <p>The following states are currently under lockdown measures:</p>
+                            <div class="lockdown-states">
+                                ${confinedStates.map(state => `<span>${state}</span>`).join('')}
+                            </div>
+                        </div>
+                    `);
+
+                // Add click handler for close button
+                notification.select('.close-button')
+                    .on('click', function(event) {
+                        event.stopPropagation();
+                        notification.classed('collapsed', true);
+                    });
+
+                // Add click handler for collapsed state
+                notification.on('click', function() {
+                    if (notification.classed('collapsed')) {
+                        notification.classed('collapsed', false);
+                    }
+                });
+            }
+
             const svg = d3.select('#us-map')
                 .append('svg')
                 .attr('width', width)
@@ -784,11 +941,13 @@
                                     ${stateName}
                                     ${data.is_confined ? '🚫' : ''}
                                 </div>
-                                ${confinedStatus}
-                                Total Cases: ${data.total_cases.toLocaleString()}<br>
-                                Active Cases: ${data.active_cases.toLocaleString()}<br>
-                                Deaths: ${data.deaths.toLocaleString()}<br>
-                                Risk Level: ${data.risk_level}
+                                ${data.is_confined ? '<div class="tooltip-confined">🚫 Currently Confined</div>' : ''}
+                                <div class="tooltip-stats">
+                                    Total Cases: ${data.total_cases.toLocaleString()}<br>
+                                    Active Cases: ${data.active_cases.toLocaleString()}<br>
+                                    Deaths: ${data.deaths.toLocaleString()}<br>
+                                    Risk Level: ${data.risk_level}
+                                </div>
                             `)
                                 .style('left', (event.pageX + 10) + 'px')
                                 .style('top', (event.pageY - 28) + 'px');
