@@ -423,7 +423,7 @@
                 >
             </div>
             <div class="header-actions">
-                <a href="{{ url_for('stats.covid_stats_form') }}" class="btn btn-primary">
+                <a href="{{ url_for('stats.upload_data') }}" class="btn btn-primary">
                     <span class="btn-icon">📊</span>
                     Submit Statistics
                 </a>
@@ -446,9 +446,6 @@
                     <h2>Pandemic Management Dashboard</h2>
                     <p>A comprehensive system for monitoring pandemic metrics and making data-driven decisions to control the spread in your state.</p>
                     <p>Last login: {{ current_user.last_login or 'First login' }}</p>
-                    <div class="action-buttons">
-                        <a href="{{ url_for('stats.upload_data') }}" class="btn">Submit COVID-19 Statistics</a>
-                    </div>
                 </div>
                 
                 <div class="dashboard-card">
