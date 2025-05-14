@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 from flask_login import login_required, current_user
 from sqlalchemy import desc
+from app.main.routes import update_predictions
 
 @bp.route('/')
 @login_required
@@ -189,6 +190,10 @@ def daily_stats():
         try:
             db.session.add(new_data)
             db.session.commit()
+            
+            # Update predictions after new data is added
+            update_predictions()
+            
             flash('Daily statistics submitted successfully!', 'success')
             
             # After successful submission, show the submitted data

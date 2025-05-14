@@ -50,7 +50,6 @@ class ProphetPredictor:
                 model_path = self.model_dir / f"{model_key}.pkl"
                 
                 if model_path.exists():
-                    print(f"Loading model: {model_key}")
                     with open(model_path, 'rb') as fin:
                         model = pickle.load(fin)
                     self.models[model_key] = model

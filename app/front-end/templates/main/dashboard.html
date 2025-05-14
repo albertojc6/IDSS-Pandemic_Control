@@ -401,6 +401,48 @@
             margin-bottom: 8px;
             font-size: 1.1rem;
         }
+
+        .predictions-section {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .prediction-cards {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .prediction-card {
+            flex: 1;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .prediction-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 10px 0;
+        }
+
+        .prediction-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .prediction-date {
+            text-align: center;
+            color: #666;
+            margin-top: 20px;
+            font-style: italic;
+        }
     </style>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://d3js.org/topojson.v3.min.js"></script>
@@ -536,6 +578,8 @@
             </div>
         </div>
         {% endif %}
+
+        <!-- Remove Predictions Section -->
     </div>
 
     <script>

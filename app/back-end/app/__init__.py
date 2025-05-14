@@ -6,6 +6,7 @@ from app.models import PandemicData, User
 import os
 from sqlalchemy import text
 from pathlib import Path
+from app.services.prophet_predictor import ProphetPredictor
 
 def reset_database(app):
     """
@@ -126,6 +127,12 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     login_manager.init_app(app)  # User authentication
     bcrypt.init_app(app)  # Password hashing
+    
+    # Initialize ProphetPredictor
+    with app.app_context():
+        predictor = ProphetPredictor()
+        predictor.load_models()
+        app.prophet_predictor = predictor
     
     # Register blueprints for different sections of the application
     from app.auth import bp as auth_bp

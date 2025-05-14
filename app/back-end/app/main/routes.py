@@ -1,11 +1,13 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_required, current_user
-from app.models import PandemicData
+from app.models import PandemicData, Prediction
 from app.utils.data_generator import get_state_abbreviation
 from sqlalchemy import func, desc
 from datetime import datetime, timedelta
 from collections import defaultdict
 from app.main import bp  # Changed to import bp from main blueprint
+from app.extensions import db
+from app.services.prophet_predictor import ProphetPredictor
 
 @bp.route('/')  # Changed from main to bp
 def index():
@@ -13,9 +15,58 @@ def index():
         return redirect(url_for('main.dashboard'))
     return redirect(url_for('auth.login'))
 
+def update_predictions():
+    """Update predictions for all states"""
+    predictor = current_app.prophet_predictor
+    
+    # Get list of states
+    states = [state[0] for state in PandemicData.query.with_entities(PandemicData.state).distinct().all()]
+    
+    # Get latest date in the database and convert to datetime
+    latest_date = PandemicData.query.with_entities(PandemicData.date).order_by(desc(PandemicData.date)).first()[0]
+    latest_datetime = datetime.combine(latest_date, datetime.min.time())
+    
+    # Get the latest data for the logged-in state
+    latest_state_data = PandemicData.query.filter_by(
+        state=current_user.state_name,
+        date=latest_date
+    ).first()
+    
+    if latest_state_data:
+        print(f"\nMaking predictions for {current_user.state_name} using data from {latest_date}")
+        print("=" * 80)
+        print(f"Date: {latest_state_data.date}")
+        print(f"Positive Cases: {latest_state_data.positive}")
+        print(f"Positive Increase: {latest_state_data.positiveIncrease}")
+        print(f"Hospitalized Increase: {latest_state_data.hospitalizedIncrease}")
+        print(f"Death Increase: {latest_state_data.deathIncrease}")
+        print(f"Total Tests: {latest_state_data.totalTestResults}")
+        print("=" * 80)
+    
+    # Make predictions for each state
+    for state in states:
+        try:
+            # Check if prediction already exists for this state and date
+            existing_prediction = Prediction.query.filter_by(
+                state=state,
+                date=latest_date
+            ).first()
+            
+            if not existing_prediction:
+                prediction = predictor.predict_for_state(state, latest_datetime)
+                db.session.add(prediction)
+                db.session.commit()
+        except Exception as e:
+            current_app.logger.error(f"Error making prediction for {state}: {str(e)}")
+            if state == current_user.state_name:
+                print(f"Error making prediction for {state}: {str(e)}")
+
 @bp.route('/dashboard')
 @login_required
 def dashboard():
+    # Update predictions before showing dashboard
+    update_predictions()
+    
     # Get the latest data for each state
     latest_data_query = PandemicData.query.with_entities(
         PandemicData.state, 
@@ -78,6 +129,11 @@ def dashboard():
             if data.state.lower() == current_user.state_name.lower():
                 state_data = data
                 break
+        
+        # Get latest prediction for the user's state
+        latest_prediction = Prediction.query.filter_by(
+            state=current_user.state_name
+        ).order_by(desc(Prediction.date)).first()
         
         if state_data:
             # Get state's daily data for the last 14 days
@@ -218,7 +274,8 @@ def dashboard():
             'main/dashboard.html', 
             covid_data=covid_data,
             national_data=national_data_obj,
-            national_daily_cases=national_daily_cases
+            national_daily_cases=national_daily_cases,
+            latest_prediction=latest_prediction
         )
     
     # If no data is available
@@ -227,6 +284,9 @@ def dashboard():
 @bp.route('/decision-support')
 @login_required
 def decision_support():
+    # Update predictions before showing decision support
+    update_predictions()
+    
     # Get the latest data for the state
     latest_data = PandemicData.query.filter(
         PandemicData.state == current_user.state_name
@@ -235,6 +295,11 @@ def decision_support():
     if not latest_data:
         flash('No data available for your state.', 'error')
         return redirect(url_for('main.dashboard'))
+    
+    # Get latest prediction for the user's state
+    latest_prediction = Prediction.query.filter_by(
+        state=current_user.state_name
+    ).order_by(desc(Prediction.date)).first()
     
     # Calculate positive rate
     positive_rate = latest_data.positive / latest_data.totalTestResults if latest_data.totalTestResults > 0 else 0
@@ -343,5 +408,6 @@ def decision_support():
         risk_level=risk_level,
         positive_rate=positive_rate,
         trend=trend,
-        recommendations=recommendations
+        recommendations=recommendations,
+        latest_prediction=latest_prediction
     )
