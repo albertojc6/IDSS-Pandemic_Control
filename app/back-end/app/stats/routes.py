@@ -1,13 +1,14 @@
 from flask import render_template, request, jsonify, flash, redirect, url_for, current_app
 from app.stats import bp
-from app.stats.forms import CovidStatsForm
+from app.stats.forms import CovidStatsForm, DailyStatsForm
 from app.models import PandemicData
 from app.utils.data_manager import import_csv_data, get_pandemic_data, get_states_list, get_time_series_data
 from app.extensions import db
 import os
 from werkzeug.utils import secure_filename
-from datetime import datetime
-from flask_login import login_required
+from datetime import datetime, timedelta
+from flask_login import login_required, current_user
+from sqlalchemy import desc
 
 @bp.route('/')
 @login_required
@@ -124,3 +125,83 @@ def api_time_series(state, metric):
 def api_states():
     states = get_states_list()
     return jsonify(states)
+
+@bp.route('/daily-stats', methods=['GET', 'POST'])
+@login_required
+def daily_stats():
+    form = DailyStatsForm()
+    
+    # Get the last day's data for the selected state
+    last_day_data = PandemicData.query.filter_by(
+        state=current_user.state_name
+    ).order_by(desc(PandemicData.date)).first()
+    
+    # If there's no previous data, use today's date, otherwise use last date + 1 day
+    if last_day_data:
+        today = last_day_data.date + timedelta(days=1)
+    else:
+        today = datetime.now().date()
+    
+    # Check if data already exists for the calculated date
+    existing_data = PandemicData.query.filter_by(
+        date=today,
+        state=current_user.state_name
+    ).first()
+    
+    if existing_data:
+        # If data exists, show the existing data instead of the form
+        return render_template('stats/daily_stats_view.html', 
+                             data=existing_data,
+                             title='Today\'s Statistics')
+    
+    if form.validate_on_submit():
+        # Calculate total values based on last day's data and new increases
+        positive = (last_day_data.positive + form.positiveIncrease.data) if last_day_data else form.positiveIncrease.data
+        totalTestResults = (last_day_data.totalTestResults + form.totalTestResultsIncrease.data) if last_day_data else form.totalTestResultsIncrease.data
+        death = (last_day_data.death + form.deathIncrease.data) if last_day_data else form.deathIncrease.data
+        total = positive + form.negativeIncrease.data
+        posNeg = total
+        
+        # Create new record
+        new_data = PandemicData(
+            date=today,
+            state=current_user.state_name,
+            positive=positive,
+            totalTestResults=totalTestResults,
+            death=death,
+            positiveIncrease=form.positiveIncrease.data,
+            negativeIncrease=form.negativeIncrease.data,
+            total=total,
+            totalTestResultsIncrease=form.totalTestResultsIncrease.data,
+            posNeg=posNeg,
+            deathIncrease=form.deathIncrease.data,
+            hospitalizedIncrease=form.hospitalizedIncrease.data,
+            Dose1_Total=form.Dose1_Total.data,
+            Dose1_Total_pct=form.Dose1_Total_pct.data,
+            Dose1_65Plus=form.Dose1_65Plus.data,
+            Dose1_65Plus_pct=form.Dose1_65Plus_pct.data,
+            Complete_Total=form.Complete_Total.data,
+            Complete_Total_pct=form.Complete_Total_pct.data,
+            Complete_65Plus=form.Complete_65Plus.data,
+            Complete_65Plus_pct=form.Complete_65Plus_pct.data
+        )
+        
+        try:
+            db.session.add(new_data)
+            db.session.commit()
+            flash('Daily statistics submitted successfully!', 'success')
+            
+            # After successful submission, show the submitted data
+            return render_template('stats/daily_stats_view.html', 
+                                 data=new_data,
+                                 title='Today\'s Statistics')
+        except Exception as e:
+            db.session.rollback()
+            flash('Error submitting daily statistics. Please try again.', 'error')
+            current_app.logger.error(f'Error submitting daily statistics: {str(e)}')
+    
+    return render_template('stats/daily_stats_form.html', 
+                         form=form, 
+                         today=today,
+                         state=current_user.state_name,
+                         title='Submit Daily Statistics')

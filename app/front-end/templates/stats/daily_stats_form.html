@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-2" style="max-width: 1100px;">
+    <div class="row justify-content-center">
+        <div class="col-12">
+            <div class="card shadow-lg" style="max-width: 1000px; margin: 0 auto;">
+                <div class="card-header bg-primary text-white py-2">
+                    <h4 class="mb-0 text-center">📊 Daily Pandemic Statistics</h4>
+                </div>
+                <div class="card-body p-3">
+                    <!-- Info Box -->
+                    <div class="info-box mb-3">
+                        <div class="row align-items-center">
+                            <div class="col-md-6 text-center text-md-start">
+                                <span class="info-label">📅 Date:</span>
+                                <span class="info-value">{{ today.strftime('%B %d, %Y') }}</span>
+                            </div>
+                            <div class="col-md-6 text-center text-md-end">
+                                <span class="info-label">📍 State:</span>
+                                <span class="info-value">{{ state }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('stats.daily_stats') }}" class="needs-validation" novalidate>
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Daily Increases Section -->
+                        <div class="section mb-3">
+                            <h5 class="section-title">Daily Increases</h5>
+                            <div class="grid-section grid-section-wide">
+                                <div class="grid-label">{{ form.positiveIncrease.label(class="form-label grid-label-text") }}</div>
+                                <div class="grid-label">{{ form.negativeIncrease.label(class="form-label grid-label-text") }}</div>
+                                <div class="grid-label">{{ form.totalTestResultsIncrease.label(class="form-label grid-label-text") }}</div>
+                                <div class="grid-label">{{ form.deathIncrease.label(class="form-label grid-label-text") }}</div>
+                                <div class="grid-label">{{ form.hospitalizedIncrease.label(class="form-label grid-label-text") }}</div>
+
+                                <div>{{ form.positiveIncrease(class="form-control form-control-sm grid-input-wide") }}{% for error in form.positiveIncrease.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                                <div>{{ form.negativeIncrease(class="form-control form-control-sm grid-input-wide") }}{% for error in form.negativeIncrease.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                                <div>{{ form.totalTestResultsIncrease(class="form-control form-control-sm grid-input-wide") }}{% for error in form.totalTestResultsIncrease.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                                <div>{{ form.deathIncrease(class="form-control form-control-sm grid-input-wide") }}{% for error in form.deathIncrease.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                                <div>{{ form.hospitalizedIncrease(class="form-control form-control-sm grid-input-wide") }}{% for error in form.hospitalizedIncrease.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                            </div>
+                        </div>
+
+                        <!-- Vaccination Data Section -->
+                        <div class="section mb-3">
+                            <h5 class="section-title">💉 Vaccination Data</h5>
+                            <div class="grid-section grid-section-vax-wide">
+                                <!-- First Row -->
+                                <div class="grid-label">{{ form.Dose1_Total.label(class="form-label grid-label-text") }}</div>
+                                <div class="grid-label">{{ form.Dose1_Total_pct.label(class="form-label grid-label-text") }}</div>
+                                <div class="grid-label">{{ form.Dose1_65Plus.label(class="form-label grid-label-text") }}</div>
+                                <div class="grid-label">{{ form.Dose1_65Plus_pct.label(class="form-label grid-label-text") }}</div>
+
+                                <div>{{ form.Dose1_Total(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Dose1_Total.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                                <div>{{ form.Dose1_Total_pct(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Dose1_Total_pct.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                                <div>{{ form.Dose1_65Plus(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Dose1_65Plus.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                                <div>{{ form.Dose1_65Plus_pct(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Dose1_65Plus_pct.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+
+                                <!-- Second Row -->
+                                <div class="grid-label">{{ form.Complete_Total.label(class="form-label grid-label-text") }}</div>
+                                <div class="grid-label">{{ form.Complete_Total_pct.label(class="form-label grid-label-text") }}</div>
+                                <div class="grid-label">{{ form.Complete_65Plus.label(class="form-label grid-label-text") }}</div>
+                                <div class="grid-label">{{ form.Complete_65Plus_pct.label(class="form-label grid-label-text") }}</div>
+
+                                <div>{{ form.Complete_Total(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Complete_Total.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                                <div>{{ form.Complete_Total_pct(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Complete_Total_pct.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                                <div>{{ form.Complete_65Plus(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Complete_65Plus.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                                <div>{{ form.Complete_65Plus_pct(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Complete_65Plus_pct.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                            </div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                {{ form.submit(class="btn btn-primary w-100") }}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .card-header {
+        background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+    }
+    .info-box {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 0.75rem;
+        border: 1px solid #e9ecef;
+    }
+    .info-label {
+        font-weight: 600;
+        color: #6c757d;
+        margin-right: 0.5rem;
+    }
+    .info-value {
+        color: #212529;
+        font-weight: 500;
+    }
+    .section {
+        background-color: #ffffff;
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .section-title {
+        color: #0d6efd;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+        font-size: 1rem;
+    }
+    .grid-section-wide {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(160px, 1fr));
+        gap: 0.5rem 1.5rem;
+        align-items: end;
+        margin-bottom: 0.5rem;
+    }
+    .grid-section-vax-wide {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(180px, 1fr));
+        gap: 0.75rem 1.5rem;
+        align-items: start;
+        margin-bottom: 0.5rem;
+    }
+    .grid-label {
+        text-align: center;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 0.25rem;
+        min-height: 2.2em;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        word-break: break-word;
+    }
+    .grid-label-text {
+        margin-bottom: 0;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #495057;
+        text-align: center;
+        width: 100%;
+        white-space: normal;
+    }
+    .grid-input-wide {
+        width: 100%;
+        min-width: 0;
+        max-width: 140px;
+        margin: 0 auto;
+        text-align: center;
+        margin-top: 0.25rem;
+    }
+    .form-label {
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 0.25rem;
+        font-size: 0.95rem;
+    }
+    .form-control {
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        height: calc(1.5em + 0.5rem + 2px);
+    }
+    .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+        border: none;
+        padding: 0.75rem;
+        font-weight: 600;
+        font-size: 1.1rem;
+        transition: all 0.2s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+        background: linear-gradient(135deg, #0a58ca 0%, #084298 100%);
+    }
+    .btn-outline-secondary {
+        border: 1px solid #6c757d;
+        padding: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    .btn-outline-secondary:hover {
+        background-color: #6c757d;
+        color: white;
+        transform: translateY(-1px);
+    }
+    .invalid-feedback {
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+        color: #dc3545;
+    }
+    .form-group {
+        margin-bottom: 0.5rem;
+    }
+    @media (max-width: 1400px) {
+        .grid-section-vax-wide {
+            grid-template-columns: repeat(4, minmax(160px, 1fr));
+        }
+    }
+    @media (max-width: 1200px) {
+        .grid-section-wide {
+            grid-template-columns: repeat(3, minmax(160px, 1fr));
+        }
+        .grid-section-vax-wide {
+            grid-template-columns: repeat(3, minmax(160px, 1fr));
+        }
+    }
+    @media (max-width: 900px) {
+        .grid-section-wide {
+            grid-template-columns: repeat(2, minmax(160px, 1fr));
+        }
+        .grid-section-vax-wide {
+            grid-template-columns: repeat(2, minmax(160px, 1fr));
+        }
+    }
+    @media (max-width: 768px) {
+        .card-body {
+            padding: 0.75rem;
+        }
+        .section {
+            padding: 0.75rem;
+        }
+        .info-box {
+            text-align: center;
+        }
+        .info-value {
+            display: block;
+            margin-top: 0.25rem;
+        }
+        .grid-section-wide, .grid-section-vax-wide {
+            grid-template-columns: repeat(1, 1fr) !important;
+        }
+    }
+</style>
+{% endblock %} 
