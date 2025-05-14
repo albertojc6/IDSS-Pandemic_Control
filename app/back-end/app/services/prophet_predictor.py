@@ -65,7 +65,7 @@ class ProphetPredictor:
             date: Date to make predictions for
             
         Returns:
-            Prediction object with the 7-day sums
+            Prediction object with the 7-day sums and daily predictions
         """
         # Get historical data for the state from daily_covidMatrix
         state_data = self.df_tmp[self.df_tmp['state'] == state].copy()
@@ -88,6 +88,7 @@ class ProphetPredictor:
         
         # Make predictions for each target
         predictions = {}
+        daily_predictions = {}
         for target in self.target_lst:
             cluster_num = cluster[target].values[0]
             model_key = f"{target}_cluster{cluster_num}"
@@ -96,7 +97,8 @@ class ProphetPredictor:
                 raise ValueError(f"No model found for {target} in cluster {cluster_num}")
             
             forecast = self.models[model_key].predict(future)
-            predictions[target] = int(forecast['yhat'].sum())
+            daily_predictions[target] = [int(x) for x in forecast['yhat']]
+            predictions[target] = sum(daily_predictions[target])
         
         # Create and save prediction record
         prediction = Prediction(
@@ -104,7 +106,10 @@ class ProphetPredictor:
             date=date.date(),
             positive_increase_sum=predictions['positiveIncrease'],
             hospitalized_increase_sum=predictions['hospitalizedIncrease'],
-            death_increase_sum=predictions['deathIncrease']
+            death_increase_sum=predictions['deathIncrease'],
+            positive_daily=daily_predictions['positiveIncrease'],
+            hospitalized_daily=daily_predictions['hospitalizedIncrease'],
+            death_daily=daily_predictions['deathIncrease']
         )
         
         db.session.add(prediction)

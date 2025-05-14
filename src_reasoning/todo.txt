@@ -1,3 +1,3 @@
-que tot sigui una classe amb 2 metodes
-1- retorni variables importants (theta, pi, etc.)
-2- Matriu de recomanacions per estat (confinament)
+La classe ha de tenir un mètode que rebi l'estat, el dia i les prediccions dels 7 dies futurs, 
+i retorni les variables clau i les recomanacions. NO una matriu per tots els estats.
+

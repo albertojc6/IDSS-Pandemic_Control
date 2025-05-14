@@ -97,6 +97,11 @@ class Prediction(db.Model):
     hospitalized_increase_sum = db.Column(db.Integer, nullable=False)
     death_increase_sum = db.Column(db.Integer, nullable=False)
     
+    # Daily predictions (stored as JSON strings)
+    positive_daily = db.Column(db.JSON, nullable=False)  # List of 7 daily predictions
+    hospitalized_daily = db.Column(db.JSON, nullable=False)  # List of 7 daily predictions
+    death_daily = db.Column(db.JSON, nullable=False)  # List of 7 daily predictions
+    
     # Metadata
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
@@ -111,6 +116,9 @@ class Prediction(db.Model):
             'positive_increase_sum': self.positive_increase_sum,
             'hospitalized_increase_sum': self.hospitalized_increase_sum,
             'death_increase_sum': self.death_increase_sum,
+            'positive_daily': self.positive_daily,
+            'hospitalized_daily': self.hospitalized_daily,
+            'death_daily': self.death_daily,
             'created_at': self.created_at.isoformat()
         }
 

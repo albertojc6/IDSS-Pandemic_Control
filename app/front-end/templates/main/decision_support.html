@@ -46,6 +46,32 @@
                     </div>
                 </div>
                 <p class="prediction-date">Predictions as of {{ latest_prediction.date.strftime('%Y-%m-%d') }}</p>
+
+                <!-- Daily Predictions Dashboard -->
+                <div class="daily-predictions-dashboard">
+                    <h3 class="dashboard-title">Daily Predictions</h3>
+                    <div class="dashboard-grid">
+                        {% for i in range(7) %}
+                        <div class="daily-prediction-card">
+                            <h4>Day {{ i + 1 }}</h4>
+                            <div class="daily-metrics">
+                                <div class="metric">
+                                    <span class="metric-label">Cases</span>
+                                    <span class="metric-value">{{ latest_prediction.positive_daily[i] }}</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-label">Hospitalizations</span>
+                                    <span class="metric-value">{{ latest_prediction.hospitalized_daily[i] }}</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-label">Deaths</span>
+                                    <span class="metric-value">{{ latest_prediction.death_daily[i] }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
             {% endif %}
         </div>
@@ -248,9 +274,73 @@
         line-height: 1.4;
     }
 
+    .daily-predictions-dashboard {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+    }
+
+    .dashboard-title {
+        color: #2c3e50;
+        font-size: 1.3em;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 15px;
+    }
+
+    .daily-prediction-card {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        transition: transform 0.2s;
+    }
+
+    .daily-prediction-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .daily-prediction-card h4 {
+        color: #2c3e50;
+        margin: 0 0 10px 0;
+        font-size: 1.1em;
+    }
+
+    .daily-metrics {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .metric {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .metric-label {
+        color: #666;
+        font-size: 0.9em;
+    }
+
+    .metric-value {
+        font-weight: bold;
+        color: #2c3e50;
+        font-size: 1.1em;
+    }
+
     @media (max-width: 1200px) {
         .content-grid {
             grid-template-columns: 1fr;
+        }
+        .dashboard-grid {
+            grid-template-columns: repeat(4, 1fr);
         }
     }
 
@@ -259,6 +349,93 @@
         .prediction-cards {
             grid-template-columns: 1fr;
         }
+        .dashboard-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 </style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const canvas = document.getElementById('predictionPlot');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const predictionDate = new Date(JSON.parse(canvas.dataset.predictionDate));
+    const positiveData = JSON.parse(canvas.dataset.positiveDaily);
+    const hospitalizedData = JSON.parse(canvas.dataset.hospitalizedDaily);
+    const deathData = JSON.parse(canvas.dataset.deathDaily);
+    
+    // Generate dates for x-axis
+    const dates = Array.from({length: 7}, (_, i) => {
+        const date = new Date(predictionDate);
+        date.setDate(date.getDate() + i);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [
+                {
+                    label: 'Positive Cases',
+                    data: positiveData,
+                    borderColor: '#4CAF50',
+                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Hospitalizations',
+                    data: hospitalizedData,
+                    borderColor: '#FF9800',
+                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Deaths',
+                    data: deathData,
+                    borderColor: '#F44336',
+                    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                },
+                title: {
+                    display: true,
+                    text: '7-Day Forecast'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Count'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
 {% endblock %} 
