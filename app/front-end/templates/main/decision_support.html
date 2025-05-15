@@ -2,7 +2,10 @@
 
 {% block content %}
 <div class="decision-support-container">
-    <h1 class="main-title">Decision Support System for Wyoming</h1>
+    <!-- Load Chart.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
+    <h1 class="main-title">Decision Support System for {{ current_user.state_name }}</h1>
     
     <div class="content-grid">
         <!-- Left Column -->
@@ -29,8 +32,8 @@
             <!-- Predictions Section -->
             {% if latest_prediction %}
             <div class="section-card">
-                <h2 class="section-title">7-Day Forecast</h2>
-                <p class="forecast-description">Expected new statistics in next 7 days</p>
+                <h2 class="section-title">Predictions</h2>
+                <p class="forecast-subtitle">7-Day Total</p>
                 <div class="prediction-cards">
                     <div class="prediction-card">
                         <h3>Positive Cases</h3>
@@ -49,28 +52,159 @@
 
                 <!-- Daily Predictions Dashboard -->
                 <div class="daily-predictions-dashboard">
-                    <h3 class="dashboard-title">Daily Predictions</h3>
-                    <div class="dashboard-grid">
-                        {% for i in range(7) %}
-                        <div class="daily-prediction-card">
-                            <h4>Day {{ i + 1 }}</h4>
-                            <div class="daily-metrics">
-                                <div class="metric">
-                                    <span class="metric-label">Cases</span>
-                                    <span class="metric-value">{{ latest_prediction.positive_daily[i] }}</span>
-                                </div>
-                                <div class="metric">
-                                    <span class="metric-label">Hospitalizations</span>
-                                    <span class="metric-value">{{ latest_prediction.hospitalized_daily[i] }}</span>
-                                </div>
-                                <div class="metric">
-                                    <span class="metric-label">Deaths</span>
-                                    <span class="metric-value">{{ latest_prediction.death_daily[i] }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
+                    <p class="forecast-subtitle">Daily Breakdown</p>
+                    <div class="plot-container">
+                        <canvas id="predictionPlot"></canvas>
                     </div>
+                    <!-- Data container -->
+                    <script id="prediction-data" type="application/json">
+                        {
+                            "positiveData": {{ latest_prediction.positive_daily|tojson|safe }},
+                            "hospitalizedData": {{ latest_prediction.hospitalized_daily|tojson|safe }},
+                            "deathData": {{ latest_prediction.death_daily|tojson|safe }},
+                            "predictionDate": "{{ latest_prediction.date.strftime('%Y-%m-%d') }}"
+                        }
+                    </script>
+                    <!-- Chart initialization -->
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            // Get the data from the JSON script tag
+                            const templateData = JSON.parse(document.getElementById('prediction-data').textContent);
+                            const ctx = document.getElementById('predictionPlot').getContext('2d');
+                            const predictionDate = new Date(templateData.predictionDate);
+                            
+                            // Generate dates for x-axis
+                            const dates = Array.from({length: 7}, (_, i) => {
+                                const date = new Date(predictionDate);
+                                date.setDate(date.getDate() + i);
+                                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            });
+
+                            new Chart(ctx, {
+                                type: 'line',
+                                data: {
+                                    labels: dates,
+                                    datasets: [
+                                        {
+                                            label: 'Positive Cases',
+                                            data: templateData.positiveData,
+                                            borderColor: '#2196F3',
+                                            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                                            borderWidth: 2,
+                                            tension: 0.3,
+                                            fill: true,
+                                            pointBackgroundColor: '#2196F3'
+                                        },
+                                        {
+                                            label: 'Hospitalizations',
+                                            data: templateData.hospitalizedData,
+                                            borderColor: '#FF9800',
+                                            backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                                            borderWidth: 2,
+                                            tension: 0.3,
+                                            fill: true,
+                                            pointBackgroundColor: '#FF9800'
+                                        },
+                                        {
+                                            label: 'Deaths',
+                                            data: templateData.deathData,
+                                            borderColor: '#F44336',
+                                            backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                                            borderWidth: 2,
+                                            tension: 0.3,
+                                            fill: true,
+                                            pointBackgroundColor: '#F44336'
+                                        }
+                                    ]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    interaction: {
+                                        intersect: false,
+                                        mode: 'index'
+                                    },
+                                    plugins: {
+                                        legend: {
+                                            position: 'top',
+                                            labels: {
+                                                padding: 20,
+                                                font: {
+                                                    size: 12,
+                                                    weight: 'bold'
+                                                }
+                                            }
+                                        },
+                                        title: {
+                                            display: true,
+                                            text: '7-Day COVID-19 Forecast',
+                                            font: {
+                                                size: 16,
+                                                weight: 'bold'
+                                            },
+                                            padding: {
+                                                top: 10,
+                                                bottom: 30
+                                            }
+                                        },
+                                        tooltip: {
+                                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                            titleColor: '#2c3e50',
+                                            bodyColor: '#2c3e50',
+                                            borderColor: '#e1e1e1',
+                                            borderWidth: 1,
+                                            padding: 10,
+                                            displayColors: true,
+                                            callbacks: {
+                                                label: function(context) {
+                                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString();
+                                                }
+                                            }
+                                        }
+                                    },
+                                    scales: {
+                                        y: {
+                                            beginAtZero: true,
+                                            title: {
+                                                display: true,
+                                                text: 'Number of Cases',
+                                                font: {
+                                                    weight: 'bold'
+                                                },
+                                                padding: {
+                                                    bottom: 10
+                                                }
+                                            },
+                                            grid: {
+                                                color: 'rgba(0, 0, 0, 0.1)',
+                                                drawBorder: false
+                                            },
+                                            ticks: {
+                                                callback: function(value) {
+                                                    return value.toLocaleString();
+                                                }
+                                            }
+                                        },
+                                        x: {
+                                            title: {
+                                                display: true,
+                                                text: 'Date',
+                                                font: {
+                                                    weight: 'bold'
+                                                },
+                                                padding: {
+                                                    top: 10
+                                                }
+                                            },
+                                            grid: {
+                                                display: false
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                        });
+                    </script>
                 </div>
             </div>
             {% endif %}
@@ -116,7 +250,7 @@
 
     .content-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 2fr 1fr;
         gap: 30px;
         margin-top: 20px;
     }
@@ -135,6 +269,14 @@
         margin-bottom: 20px;
         padding-bottom: 10px;
         border-bottom: 2px solid #f0f0f0;
+    }
+
+    .forecast-subtitle {
+        color: #666;
+        font-size: 1.1em;
+        margin: 0 0 15px 0;
+        font-weight: 500;
+        text-align: left;
     }
 
     .status-cards {
@@ -248,7 +390,7 @@
     }
 
     .recommendation-card.low {
-        border-left: 4px solid #4CAF50;
+        border-left: 4px solid #2196F3;
     }
 
     .recommendation-card h3 {
@@ -287,60 +429,24 @@
         text-align: center;
     }
 
-    .dashboard-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 15px;
-    }
-
-    .daily-prediction-card {
+    .plot-container {
         background: #f8f9fa;
-        padding: 15px;
+        padding: 20px;
         border-radius: 8px;
-        text-align: center;
-        transition: transform 0.2s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        position: relative;
+        width: 100%;
+        height: 500px;
     }
 
-    .daily-prediction-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-
-    .daily-prediction-card h4 {
-        color: #2c3e50;
-        margin: 0 0 10px 0;
-        font-size: 1.1em;
-    }
-
-    .daily-metrics {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .metric {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-
-    .metric-label {
-        color: #666;
-        font-size: 0.9em;
-    }
-
-    .metric-value {
-        font-weight: bold;
-        color: #2c3e50;
-        font-size: 1.1em;
+    #predictionPlot {
+        width: 100% !important;
+        height: 100% !important;
     }
 
     @media (max-width: 1200px) {
         .content-grid {
             grid-template-columns: 1fr;
-        }
-        .dashboard-grid {
-            grid-template-columns: repeat(4, 1fr);
         }
     }
 
@@ -349,93 +455,226 @@
         .prediction-cards {
             grid-template-columns: 1fr;
         }
-        .dashboard-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
     }
 </style>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const canvas = document.getElementById('predictionPlot');
-    if (!canvas) return;
+    if (!canvas) {
+        console.error('Canvas element not found');
+        return;
+    }
+
+    // Log all available data attributes
+    console.log('Available data attributes:', canvas.dataset);
 
     const ctx = canvas.getContext('2d');
-    const predictionDate = new Date(JSON.parse(canvas.dataset.predictionDate));
-    const positiveData = JSON.parse(canvas.dataset.positiveDaily);
-    const hospitalizedData = JSON.parse(canvas.dataset.hospitalizedDaily);
-    const deathData = JSON.parse(canvas.dataset.deathDaily);
-    
-    // Generate dates for x-axis
-    const dates = Array.from({length: 7}, (_, i) => {
-        const date = new Date(predictionDate);
-        date.setDate(date.getDate() + i);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    });
+    if (!ctx) {
+        console.error('Could not get canvas context');
+        return;
+    }
 
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: dates,
-            datasets: [
-                {
-                    label: 'Positive Cases',
-                    data: positiveData,
-                    borderColor: '#4CAF50',
-                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                },
-                {
-                    label: 'Hospitalizations',
-                    data: hospitalizedData,
-                    borderColor: '#FF9800',
-                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                },
-                {
-                    label: 'Deaths',
-                    data: deathData,
-                    borderColor: '#F44336',
-                    backgroundColor: 'rgba(244, 67, 54, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top'
-                },
-                title: {
-                    display: true,
-                    text: '7-Day Forecast'
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Count'
-                    }
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Date'
-                    }
-                }
+    try {
+        // Parse all data with error checking
+        let positiveData, hospitalizedData, deathData, predictionDate;
+        
+        try {
+            predictionDate = new Date(canvas.dataset.predictionDate);
+            if (isNaN(predictionDate.getTime())) {
+                throw new Error('Invalid date');
             }
+        } catch (e) {
+            console.error('Error parsing prediction date:', canvas.dataset.predictionDate);
+            return;
         }
-    });
+
+        try {
+            positiveData = JSON.parse(canvas.dataset.positiveDaily);
+            if (!Array.isArray(positiveData)) {
+                throw new Error('Not an array');
+            }
+        } catch (e) {
+            console.error('Error parsing positive data:', canvas.dataset.positiveDaily);
+            return;
+        }
+
+        try {
+            hospitalizedData = JSON.parse(canvas.dataset.hospitalizedDaily);
+            if (!Array.isArray(hospitalizedData)) {
+                throw new Error('Not an array');
+            }
+        } catch (e) {
+            console.error('Error parsing hospitalized data:', canvas.dataset.hospitalizedDaily);
+            return;
+        }
+
+        try {
+            deathData = JSON.parse(canvas.dataset.deathDaily);
+            if (!Array.isArray(deathData)) {
+                throw new Error('Not an array');
+            }
+        } catch (e) {
+            console.error('Error parsing death data:', canvas.dataset.deathDaily);
+            return;
+        }
+
+        // Log successfully parsed data
+        console.log('Successfully parsed data:', {
+            positiveData,
+            hospitalizedData,
+            deathData,
+            predictionDate
+        });
+        
+        // Generate dates for x-axis
+        const dates = Array.from({length: 7}, (_, i) => {
+            const date = new Date(predictionDate);
+            date.setDate(date.getDate() + i);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        });
+
+        // Create chart with error handling
+        try {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: 'Positive Cases',
+                            data: positiveData,
+                            borderColor: '#2196F3',
+                            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: '#2196F3'
+                        },
+                        {
+                            label: 'Hospitalizations',
+                            data: hospitalizedData,
+                            borderColor: '#FF9800',
+                            backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: '#FF9800'
+                        },
+                        {
+                            label: 'Deaths',
+                            data: deathData,
+                            borderColor: '#F44336',
+                            backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: '#F44336'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                padding: 20,
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: '7-Day COVID-19 Forecast',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            padding: {
+                                top: 10,
+                                bottom: 30
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            titleColor: '#2c3e50',
+                            bodyColor: '#2c3e50',
+                            borderColor: '#e1e1e1',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: true,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Cases',
+                                font: {
+                                    weight: 'bold'
+                                },
+                                padding: {
+                                    bottom: 10
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date',
+                                font: {
+                                    weight: 'bold'
+                                },
+                                padding: {
+                                    top: 10
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('Chart created successfully');
+        } catch (e) {
+            console.error('Error creating chart:', e);
+        }
+    } catch (error) {
+        console.error('General error:', error);
+        // Log raw data for debugging
+        console.log('Raw data:', {
+            positiveDaily: canvas.dataset.positiveDaily,
+            hospitalizedDaily: canvas.dataset.hospitalizedDaily,
+            deathDaily: canvas.dataset.deathDaily,
+            predictionDate: canvas.dataset.predictionDate
+        });
+    }
 });
 </script>
 {% endblock %} 
