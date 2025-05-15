@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import pickle
-from app.models import PandemicData, Prediction
+from app.models import PandemicData, Prediction, StaticStateData
 from app.extensions import db
 from sqlalchemy import desc
 
@@ -32,13 +32,26 @@ class ProphetPredictor:
         cluster_path = self.base_path / "clustering" / "state_clusters.csv"
         self.cluster_df = pd.read_csv(cluster_path)
         
-        # Load static state data for regressors
-        self.df_est = pd.read_csv(self.base_path / "preprocessed" / "dataMatrix" / "static_stateMatrix.csv")
+        # Try to load static state data from database, fall back to CSV if table doesn't exist
+        try:
+            static_data = StaticStateData.query.all()
+            self.df_est = pd.DataFrame([data.to_dict() for data in static_data])
+        except Exception as e:
+            print(f"Warning: Could not load static state data from database: {str(e)}")
+            print("Falling back to CSV file...")
+            self.df_est = pd.read_csv(self.base_path / "preprocessed" / "dataMatrix" / "static_stateMatrix.csv")
         
-        # Load daily COVID data
-        self.df_tmp = pd.read_csv(self.base_path / "preprocessed" / "dataMatrix" / "daily_covidMatrix.csv")
+        # Try to load daily pandemic data from database, fall back to CSV if table doesn't exist
+        try:
+            pandemic_data = PandemicData.query.order_by(PandemicData.date).all()
+            self.df_tmp = pd.DataFrame([data.to_dict() for data in pandemic_data])
+        except Exception as e:
+            print(f"Warning: Could not load pandemic data from database: {str(e)}")
+            print("Falling back to CSV file...")
+            self.df_tmp = pd.read_csv(self.base_path / "preprocessed" / "dataMatrix" / "daily_covidMatrix.csv")
+        
         self.df_tmp['ds'] = pd.to_datetime(self.df_tmp['date'])
-        
+
     def load_models(self):
         """
         Load all trained Prophet models
@@ -67,13 +80,15 @@ class ProphetPredictor:
         Returns:
             Prediction object with the 7-day sums and daily predictions
         """
-        # Get historical data for the state from daily_covidMatrix
-        state_data = self.df_tmp[self.df_tmp['state'] == state].copy()
+        # Get fresh historical data for the state from database
+        pandemic_data = PandemicData.query.filter_by(state=state).order_by(PandemicData.date).all()
+        state_data = pd.DataFrame([data.to_dict() for data in pandemic_data])
+        state_data['ds'] = pd.to_datetime(state_data['date'])
         
         if state_data.empty:
             raise ValueError(f"No data found for state {state}")
         
-        # Get static regressors for the state
+        # Get static regressors for the state from database
         state_static = self.df_est[self.df_est['state'] == state]
         if state_static.empty:
             raise ValueError(f"No static data found for state {state}")
@@ -97,7 +112,8 @@ class ProphetPredictor:
                 raise ValueError(f"No model found for {target} in cluster {cluster_num}")
             
             forecast = self.models[model_key].predict(future)
-            daily_predictions[target] = [int(x) for x in forecast['yhat']]
+            # Ensure predictions are non-negative
+            daily_predictions[target] = [max(0, int(x)) for x in forecast['yhat']]
             predictions[target] = sum(daily_predictions[target])
         
         # Create and save prediction record
@@ -127,13 +143,32 @@ class ProphetPredictor:
             df_train: DataFrame containing training data
             state_static: DataFrame containing static state features
         """
+        # Column name mapping from database to model expected names
+        column_mapping = {
+            'pop_0_9': 'pop_0-9',
+            'pop_10_19': 'pop_10-19',
+            'pop_20_29': 'pop_20-29',
+            'pop_30_39': 'pop_30-39',
+            'pop_40_49': 'pop_40-49',
+            'pop_50_59': 'pop_50-59',
+            'pop_60_69': 'pop_60-69',
+            'pop_70_79': 'pop_70-79',
+            'pop_80_plus': 'pop_80+',
+            "Non_metro": "Non-metro"
+        }
+        
         # Get temporal features from training data
         temporal_features = [col for col in df_train.columns if col not in ['ds', 'state', 'date'] + self.target_lst]
+        print(temporal_features)
         last_temporal = df_train[temporal_features].iloc[-1].values
+        print(last_temporal)
         
-        # Get static features
+        # Get static features and rename columns
         static_features = [col for col in state_static.columns if col != 'state']
         static_values = state_static[static_features].values[0]
+        
+        # Rename static features according to mapping
+        static_features = [column_mapping.get(col, col) for col in static_features]
         
         # Combine all features
         all_features = temporal_features + static_features

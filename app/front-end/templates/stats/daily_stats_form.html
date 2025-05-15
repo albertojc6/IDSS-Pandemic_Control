@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-2" style="max-width: 1100px;">
-    <div class="row justify-content-center">
-        <div class="col-12">
-            <div class="card shadow-lg" style="max-width: 1000px; margin: 0 auto;">
+<div class="container mt-2" style="max-width: 1400px;">
+    <div class="row g-4">
+        <!-- Form Column -->
+        <div class="col-md-9">
+            <div class="card shadow-lg">
                 <div class="card-header bg-primary text-white py-2">
                     <h4 class="mb-0 text-center">📊 Daily Pandemic Statistics</h4>
                 </div>
@@ -47,28 +48,18 @@
                         <!-- Vaccination Data Section -->
                         <div class="section mb-3">
                             <h5 class="section-title">💉 Vaccination Data</h5>
-                            <div class="grid-section grid-section-vax-wide">
-                                <!-- First Row -->
-                                <div class="grid-label">{{ form.Dose1_Total.label(class="form-label grid-label-text") }}</div>
-                                <div class="grid-label">{{ form.Dose1_Total_pct.label(class="form-label grid-label-text") }}</div>
-                                <div class="grid-label">{{ form.Dose1_65Plus.label(class="form-label grid-label-text") }}</div>
-                                <div class="grid-label">{{ form.Dose1_65Plus_pct.label(class="form-label grid-label-text") }}</div>
+                            <div class="grid-section grid-section-wide">
+                                <div class="grid-label">{{ form.Dose1_Increase.label(class="form-label grid-label-text") }}</div>
+                                <div class="grid-label">{{ form.Complete_Increase.label(class="form-label grid-label-text") }}</div>
+                                <div class="grid-label">{{ form.Dose1_65Plus_Increase.label(class="form-label grid-label-text") }}</div>
+                                <div class="grid-label">{{ form.Complete_65Plus_Increase.label(class="form-label grid-label-text") }}</div>
+                                <div class="grid-label"></div>
 
-                                <div>{{ form.Dose1_Total(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Dose1_Total.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
-                                <div>{{ form.Dose1_Total_pct(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Dose1_Total_pct.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
-                                <div>{{ form.Dose1_65Plus(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Dose1_65Plus.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
-                                <div>{{ form.Dose1_65Plus_pct(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Dose1_65Plus_pct.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
-
-                                <!-- Second Row -->
-                                <div class="grid-label">{{ form.Complete_Total.label(class="form-label grid-label-text") }}</div>
-                                <div class="grid-label">{{ form.Complete_Total_pct.label(class="form-label grid-label-text") }}</div>
-                                <div class="grid-label">{{ form.Complete_65Plus.label(class="form-label grid-label-text") }}</div>
-                                <div class="grid-label">{{ form.Complete_65Plus_pct.label(class="form-label grid-label-text") }}</div>
-
-                                <div>{{ form.Complete_Total(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Complete_Total.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
-                                <div>{{ form.Complete_Total_pct(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Complete_Total_pct.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
-                                <div>{{ form.Complete_65Plus(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Complete_65Plus.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
-                                <div>{{ form.Complete_65Plus_pct(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Complete_65Plus_pct.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                                <div>{{ form.Dose1_Increase(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Dose1_Increase.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                                <div>{{ form.Complete_Increase(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Complete_Increase.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                                <div>{{ form.Dose1_65Plus_Increase(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Dose1_65Plus_Increase.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                                <div>{{ form.Complete_65Plus_Increase(class="form-control form-control-sm grid-input-wide") }}{% for error in form.Complete_65Plus_Increase.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+                                <div></div>
                             </div>
                         </div>
 
@@ -79,6 +70,43 @@
                             </div>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Column -->
+        <div class="col-md-3">
+            <div class="stats-box">
+                <h5 class="stats-title">Current Statistics</h5>
+                <div class="stats-content">
+                    <div class="stat-item">
+                        <div class="stat-label">Active Cases</div>
+                        <div class="stat-value">{{ "{:,}".format(active_cases) }}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">First Dose Coverage</div>
+                        <div class="stat-value">{{ "%.1f"|format(last_day_data.Dose1_Total_pct if last_day_data and last_day_data.Dose1_Total_pct is not none else 0) }}%</div>
+                        <div class="progress">
+                            <div class="progress-bar bg-primary" role="progressbar" 
+                                 data-width="{{ last_day_data.Dose1_Total_pct if last_day_data and last_day_data.Dose1_Total_pct is not none else 0 }}"
+                                 aria-valuenow="{{ last_day_data.Dose1_Total_pct if last_day_data and last_day_data.Dose1_Total_pct is not none else 0 }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100"></div>
+                        </div>
+                        <div class="stat-subtext">65+ Coverage: {{ "%.1f"|format((last_day_data.Dose1_65Plus / ((state_data.pop_60_69 / 2 + state_data.pop_70_79 + state_data.pop_80_plus) * state_data.population_state) * 100) if last_day_data and last_day_data.Dose1_65Plus is not none else 0) }}%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Fully Vaccinated</div>
+                        <div class="stat-value">{{ "%.1f"|format(last_day_data.Complete_Total_pct if last_day_data and last_day_data.Complete_Total_pct is not none else 0) }}%</div>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" role="progressbar"
+                                 data-width="{{ last_day_data.Complete_Total_pct if last_day_data and last_day_data.Complete_Total_pct is not none else 0 }}"
+                                 aria-valuenow="{{ last_day_data.Complete_Total_pct if last_day_data and last_day_data.Complete_Total_pct is not none else 0 }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100"></div>
+                        </div>
+                        <div class="stat-subtext">65+ Coverage: {{ "%.1f"|format((last_day_data.Complete_65Plus / ((state_data.pop_60_69 / 2 + state_data.pop_70_79 + state_data.pop_80_plus) * state_data.population_state) * 100) if last_day_data and last_day_data.Complete_65Plus is not none else 0) }}%</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -199,17 +227,6 @@
         box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
         background: linear-gradient(135deg, #0a58ca 0%, #084298 100%);
     }
-    .btn-outline-secondary {
-        border: 1px solid #6c757d;
-        padding: 0.5rem;
-        font-weight: 500;
-        transition: all 0.2s ease;
-    }
-    .btn-outline-secondary:hover {
-        background-color: #6c757d;
-        color: white;
-        transform: translateY(-1px);
-    }
     .invalid-feedback {
         font-size: 0.75rem;
         margin-top: 0.25rem;
@@ -218,6 +235,65 @@
     .form-group {
         margin-bottom: 0.5rem;
     }
+
+    /* Stats Box Styles */
+    .stats-box {
+        background-color: #ffffff;
+        border-radius: 10px;
+        padding: 1.25rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        height: fit-content;
+    }
+    .stats-title {
+        color: #0d6efd;
+        font-weight: 600;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+        font-size: 1.1rem;
+    }
+    .stats-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+    .stat-item {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 0.875rem;
+        transition: transform 0.2s ease;
+    }
+    .stat-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .stat-item .stat-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+    .stat-item .stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #2d389c;
+        margin-bottom: 0.5rem;
+    }
+    .progress {
+        height: 8px;
+        background-color: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .progress-bar {
+        transition: width 0.6s ease;
+    }
+    .stat-subtext {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+
     @media (max-width: 1400px) {
         .grid-section-vax-wide {
             grid-template-columns: repeat(4, minmax(160px, 1fr));
@@ -256,6 +332,19 @@
         .grid-section-wide, .grid-section-vax-wide {
             grid-template-columns: repeat(1, 1fr) !important;
         }
+        .stats-box {
+            margin-top: 1.5rem;
+        }
     }
 </style>
+
+<script>
+    // Set progress bar widths after page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.progress-bar[data-width]').forEach(function(bar) {
+            const width = bar.getAttribute('data-width');
+            bar.style.width = width + '%';
+        });
+    });
+</script>
 {% endblock %} 

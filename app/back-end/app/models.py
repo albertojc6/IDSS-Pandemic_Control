@@ -122,6 +122,147 @@ class Prediction(db.Model):
             'created_at': self.created_at.isoformat()
         }
 
+class StaticStateData(db.Model):
+    """
+    Model for storing static state-level data and characteristics.
+    Contains information about healthcare coverage, hospital beds, population demographics, and social vulnerability.
+    """
+    __tablename__ = 'static_state_data'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    state = db.Column(db.String(50), nullable=False, unique=True)
+    
+    # Healthcare coverage
+    no_coverage = db.Column(db.Float)  # Percentage without coverage
+    private_coverage = db.Column(db.Float)  # Percentage with private coverage
+    public_coverage = db.Column(db.Float)  # Percentage with public coverage
+    labor_cov_diff = db.Column(db.Float)  # Labor coverage difference
+    
+    # Hospital beds per 1000 population
+    bedsState_local_government = db.Column(db.Float)
+    bedsNon_profit = db.Column(db.Float)
+    bedsFor_profit = db.Column(db.Float)
+    bedsTotal = db.Column(db.Float)
+    
+    # Population data
+    population_state = db.Column(db.Integer)
+    pop_density_state = db.Column(db.Float)
+    
+    # Age demographics (percentages)
+    pop_0_9 = db.Column(db.Float)
+    pop_10_19 = db.Column(db.Float)
+    pop_20_29 = db.Column(db.Float)
+    pop_30_39 = db.Column(db.Float)
+    pop_40_49 = db.Column(db.Float)
+    pop_50_59 = db.Column(db.Float)
+    pop_60_69 = db.Column(db.Float)
+    pop_70_79 = db.Column(db.Float)
+    pop_80_plus = db.Column(db.Float)
+    
+    # Social Vulnerability Index categories (percentages)
+    Low_SVI_CTGY = db.Column(db.Float)
+    Moderate_Low_SVI_CTGY = db.Column(db.Float)
+    Moderate_High_SVI_CTGY = db.Column(db.Float)
+    High_SVI_CTGY = db.Column(db.Float)
+    
+    # Urban/Rural classification (percentages)
+    Metro = db.Column(db.Float)
+    Non_metro = db.Column(db.Float)
+    
+    def __repr__(self):
+        return f'<StaticStateData {self.state}>'
+    
+    def to_dict(self):
+        """
+        Convert the model instance to a dictionary.
+        Used for JSON serialization in API responses.
+        """
+        return {
+            'id': self.id,
+            'state': self.state,
+            'no_coverage': self.no_coverage,
+            'private_coverage': self.private_coverage,
+            'public_coverage': self.public_coverage,
+            'labor_cov_diff': self.labor_cov_diff,
+            'bedsState_local_government': self.bedsState_local_government,
+            'bedsNon_profit': self.bedsNon_profit,
+            'bedsFor_profit': self.bedsFor_profit,
+            'bedsTotal': self.bedsTotal,
+            'population_state': self.population_state,
+            'pop_density_state': self.pop_density_state,
+            'pop_0_9': self.pop_0_9,
+            'pop_10_19': self.pop_10_19,
+            'pop_20_29': self.pop_20_29,
+            'pop_30_39': self.pop_30_39,
+            'pop_40_49': self.pop_40_49,
+            'pop_50_59': self.pop_50_59,
+            'pop_60_69': self.pop_60_69,
+            'pop_70_79': self.pop_70_79,
+            'pop_80_plus': self.pop_80_plus,
+            'Low_SVI_CTGY': self.Low_SVI_CTGY,
+            'Moderate_Low_SVI_CTGY': self.Moderate_Low_SVI_CTGY,
+            'Moderate_High_SVI_CTGY': self.Moderate_High_SVI_CTGY,
+            'High_SVI_CTGY': self.High_SVI_CTGY,
+            'Metro': self.Metro,
+            'Non_metro': self.Non_metro
+        }
+
+class Recommendation(db.Model):
+    """Model for storing state recommendations and metrics"""
+    __tablename__ = 'recommendations'
+
+    id = db.Column(db.Integer, primary_key=True)
+    state = db.Column(db.String(2), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    
+    # Predictions
+    infected = db.Column(db.Integer, nullable=False)
+    hospitalized = db.Column(db.Integer, nullable=False)
+    deaths = db.Column(db.Integer, nullable=False)
+    
+    # Metrics
+    ia = db.Column(db.Float, nullable=False)  # Cumulative incidence
+    theta = db.Column(db.Float, nullable=False)  # Hospital occupancy
+    pi = db.Column(db.Float, nullable=False)  # Mortality rate
+    lethality = db.Column(db.Float, nullable=False)
+    pop_over_65 = db.Column(db.Float, nullable=False)
+    density = db.Column(db.Float, nullable=False)
+    risk_level = db.Column(db.Float, nullable=False)
+    
+    # Recommendations
+    beds_recommendation = db.Column(db.String(255), nullable=False)
+    vaccination_percentage = db.Column(db.Float, nullable=False)
+    confinement_level = db.Column(db.String(50), nullable=False)
+
+    def to_dict(self) -> dict:
+        """Convert recommendation to dictionary format"""
+        return {
+            'state': self.state,
+            'date': self.date.isoformat(),
+            'predictions': {
+                'infected': self.infected,
+                'hospitalized': self.hospitalized,
+                'deaths': self.deaths
+            },
+            'metrics': {
+                'IA': self.ia,
+                'theta': self.theta,
+                'pi': self.pi,
+                'lethality': self.lethality,
+                'pop_>65': self.pop_over_65,
+                'density': self.density,
+                'risk_level': self.risk_level
+            },
+            'recommendations': {
+                'beds': [None, self.beds_recommendation],
+                'vaccination': [None, self.vaccination_percentage],
+                'confinement': [None, self.confinement_level]
+            }
+        }
+
+    def __repr__(self):
+        return f'<Recommendation {self.state} {self.date}>'
+
 @login_manager.user_loader
 def load_user(user_id):
     """

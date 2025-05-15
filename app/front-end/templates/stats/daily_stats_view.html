@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-2" style="max-width: 1100px;">
-    <div class="row justify-content-center">
-        <div class="col-12">
-            <div class="card shadow-lg" style="max-width: 1000px; margin: 0 auto;">
+<div class="container mt-2" style="max-width: 1400px;">
+    <div class="row g-4">
+        <!-- Stats Column -->
+        <div class="col-md-12">
+            <div class="card shadow-lg">
                 <div class="card-header bg-primary text-white py-2">
                     <h4 class="mb-0 text-center">📊 Daily Pandemic Statistics</h4>
                 </div>
@@ -53,45 +54,42 @@
                     <!-- Vaccination Data Section -->
                     <div class="section mb-3">
                         <h5 class="section-title">💉 Vaccination Data</h5>
-                        <div class="grid-section grid-section-vax-wide">
-                            <!-- First Row -->
+                        <div class="grid-section grid-section-wide">
                             <div class="stat-box">
-                                <div class="stat-label">Total First Doses</div>
-                                <div class="stat-value">{{ "{:,}".format(data.Dose1_Total) }}</div>
-                                <div class="stat-percentage">{{ "%.1f"|format(data.Dose1_Total_pct) }}%</div>
+                                <div class="stat-label">First Dose Coverage</div>
+                                <div class="stat-value">{{ "%.1f"|format(data.Dose1_Total_pct) }}%</div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-primary" role="progressbar" 
+                                         data-width="{{ data.Dose1_Total_pct }}"
+                                         aria-valuenow="{{ data.Dose1_Total_pct }}"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100"></div>
+                                </div>
+                                <div class="stat-subtext">65+ Coverage: {{ "%.1f"|format((data.Dose1_65Plus / ((state_data.pop_60_69 / 2 + state_data.pop_70_79 + state_data.pop_80_plus) * state_data.population_state) * 100)) }}%</div>
                             </div>
                             <div class="stat-box">
-                                <div class="stat-label">First Doses %</div>
-                                <div class="stat-value">{{ "%.1f"|format(data.Dose1_Total_pct) }}%</div>
+                                <div class="stat-label">Fully Vaccinated</div>
+                                <div class="stat-value">{{ "%.1f"|format(data.Complete_Total_pct) }}%</div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-success" role="progressbar"
+                                         data-width="{{ data.Complete_Total_pct }}"
+                                         aria-valuenow="{{ data.Complete_Total_pct }}"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100"></div>
+                                </div>
+                                <div class="stat-subtext">65+ Coverage: {{ "%.1f"|format((data.Complete_65Plus / ((state_data.pop_60_69 / 2 + state_data.pop_70_79 + state_data.pop_80_plus) * state_data.population_state) * 100)) }}%</div>
                             </div>
                             <div class="stat-box">
                                 <div class="stat-label">First Doses 65+</div>
                                 <div class="stat-value">{{ "{:,}".format(data.Dose1_65Plus) }}</div>
-                                <div class="stat-percentage">{{ "%.1f"|format(data.Dose1_65Plus_pct) }}%</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="stat-label">First Doses 65+ %</div>
-                                <div class="stat-value">{{ "%.1f"|format(data.Dose1_65Plus_pct) }}%</div>
-                            </div>
-
-                            <!-- Second Row -->
-                            <div class="stat-box">
-                                <div class="stat-label">Total Completed</div>
-                                <div class="stat-value">{{ "{:,}".format(data.Complete_Total) }}</div>
-                                <div class="stat-percentage">{{ "%.1f"|format(data.Complete_Total_pct) }}%</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="stat-label">Completed %</div>
-                                <div class="stat-value">{{ "%.1f"|format(data.Complete_Total_pct) }}%</div>
                             </div>
                             <div class="stat-box">
                                 <div class="stat-label">Completed 65+</div>
                                 <div class="stat-value">{{ "{:,}".format(data.Complete_65Plus) }}</div>
-                                <div class="stat-percentage">{{ "%.1f"|format(data.Complete_65Plus_pct) }}%</div>
                             </div>
                             <div class="stat-box">
-                                <div class="stat-label">Completed 65+ %</div>
-                                <div class="stat-value">{{ "%.1f"|format(data.Complete_65Plus_pct) }}%</div>
+                                <div class="stat-label">Population 65+</div>
+                                <div class="stat-value">{{ "{:,}".format(pop_65_plus|int) }}</div>
                             </div>
                         </div>
                     </div>
@@ -155,13 +153,6 @@
         align-items: start;
         margin-bottom: 0.5rem;
     }
-    .grid-section-vax-wide {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(180px, 1fr));
-        gap: 0.75rem 1.5rem;
-        align-items: start;
-        margin-bottom: 0.5rem;
-    }
     .stat-box {
         background-color: #f8f9fa;
         border-radius: 8px;
@@ -186,10 +177,20 @@
         color: #2d389c;
         margin-bottom: 0.25rem;
     }
-    .stat-percentage {
-        font-size: 0.9rem;
-        color: #28a745;
-        font-weight: 500;
+    .progress {
+        height: 8px;
+        background-color: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 0.5rem 0;
+    }
+    .progress-bar {
+        transition: width 0.6s ease;
+    }
+    .stat-subtext {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
     }
     .btn-primary {
         background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
@@ -206,24 +207,13 @@
         box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
         background: linear-gradient(135deg, #0a58ca 0%, #084298 100%);
     }
-    @media (max-width: 1400px) {
-        .grid-section-vax-wide {
-            grid-template-columns: repeat(4, minmax(160px, 1fr));
-        }
-    }
     @media (max-width: 1200px) {
         .grid-section-wide {
-            grid-template-columns: repeat(3, minmax(160px, 1fr));
-        }
-        .grid-section-vax-wide {
             grid-template-columns: repeat(3, minmax(160px, 1fr));
         }
     }
     @media (max-width: 900px) {
         .grid-section-wide {
-            grid-template-columns: repeat(2, minmax(160px, 1fr));
-        }
-        .grid-section-vax-wide {
             grid-template-columns: repeat(2, minmax(160px, 1fr));
         }
     }
@@ -241,9 +231,19 @@
             display: block;
             margin-top: 0.25rem;
         }
-        .grid-section-wide, .grid-section-vax-wide {
+        .grid-section-wide {
             grid-template-columns: repeat(1, 1fr) !important;
         }
     }
 </style>
+
+<script>
+    // Set progress bar widths after page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.progress-bar[data-width]').forEach(function(bar) {
+            const width = bar.getAttribute('data-width');
+            bar.style.width = width + '%';
+        });
+    });
+</script>
 {% endblock %} 

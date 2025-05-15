@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_required, current_user
-from app.models import PandemicData, Prediction
+from app.models import PandemicData, Prediction, Recommendation
 from app.utils.data_generator import get_state_abbreviation
 from sqlalchemy import func, desc
 from datetime import datetime, timedelta
@@ -15,47 +15,70 @@ def index():
         return redirect(url_for('main.dashboard'))
     return redirect(url_for('auth.login'))
 
-def update_predictions():
-    """Update predictions for all states"""
+def update_predictions(state=None):
+    """
+    Update predictions for states.
+    If state is provided, only update predictions for that state.
+    If state is None, update predictions for all states.
+    
+    Args:
+        state: Optional state code to update predictions for. If None, updates all states.
+    """
     predictor = current_app.prophet_predictor
     
-    # Get list of states
-    states = [state[0] for state in PandemicData.query.with_entities(PandemicData.state).distinct().all()]
-    
-    # Get latest date in the database and convert to datetime
-    latest_date = PandemicData.query.with_entities(PandemicData.date).order_by(desc(PandemicData.date)).first()[0]
-    latest_datetime = datetime.combine(latest_date, datetime.min.time())
-    
-    # Get the latest data for the logged-in state
-    latest_state_data = PandemicData.query.filter_by(
-        state=current_user.state_name,
-        date=latest_date
-    ).first()
-    
-    if latest_state_data:
-        print(f"\nMaking predictions for {current_user.state_name} using data from {latest_date}")
-        print("=" * 80)
-        print(f"Date: {latest_state_data.date}")
-        print(f"Positive Cases: {latest_state_data.positive}")
-        print(f"Positive Increase: {latest_state_data.positiveIncrease}")
-        print(f"Hospitalized Increase: {latest_state_data.hospitalizedIncrease}")
-        print(f"Death Increase: {latest_state_data.deathIncrease}")
-        print(f"Total Tests: {latest_state_data.totalTestResults}")
-        print("=" * 80)
+    # Get list of states to update
+    if state:
+        states = [state]
+    else:
+        states = [state[0] for state in PandemicData.query.with_entities(PandemicData.state).distinct().all()]
     
     # Make predictions for each state
     for state in states:
         try:
-            # Check if prediction already exists for this state and date
-            existing_prediction = Prediction.query.filter_by(
+            # Get the latest date for this specific state
+            latest_state_date = PandemicData.query.filter_by(
+                state=state
+            ).order_by(desc(PandemicData.date)).first()
+            
+            if not latest_state_date:
+                current_app.logger.warning(f"No data found for state {state}")
+                continue
+                
+            latest_date = latest_state_date.date
+            latest_datetime = datetime.combine(latest_date, datetime.min.time())
+            
+            # Get the latest data for this state
+            latest_state_data = PandemicData.query.filter_by(
                 state=state,
                 date=latest_date
             ).first()
             
-            if not existing_prediction:
-                prediction = predictor.predict_for_state(state, latest_datetime)
-                db.session.add(prediction)
+            if latest_state_data:
+                print(f"\nMaking predictions for {state} using data from {latest_date}")
+                print("=" * 80)
+                print(f"Date: {latest_state_data.date}")
+                print(f"Positive Cases: {latest_state_data.positive}")
+                print(f"Positive Increase: {latest_state_data.positiveIncrease}")
+                print(f"Hospitalized Increase: {latest_state_data.hospitalizedIncrease}")
+                print(f"Death Increase: {latest_state_data.deathIncrease}")
+                print(f"Total Tests: {latest_state_data.totalTestResults}")
+                print("=" * 80)
+            
+            # Delete existing prediction for this state and date if it exists
+            existing_prediction = Prediction.query.filter_by(
+                state=state,
+                date=latest_date
+            ).first()
+            if existing_prediction:
+                db.session.delete(existing_prediction)
                 db.session.commit()
+            
+            # Create new prediction
+            prediction = predictor.predict_for_state(state, latest_datetime)
+            db.session.add(prediction)
+            db.session.commit()
+            current_app.logger.info(f"Updated prediction for {state} using data from {latest_date}")
+            
         except Exception as e:
             current_app.logger.error(f"Error making prediction for {state}: {str(e)}")
             if state == current_user.state_name:
@@ -64,9 +87,6 @@ def update_predictions():
 @bp.route('/dashboard')
 @login_required
 def dashboard():
-    # Update predictions before showing dashboard
-    update_predictions()
-    
     # Get the latest data for each state
     latest_data_query = PandemicData.query.with_entities(
         PandemicData.state, 
@@ -187,63 +207,43 @@ def dashboard():
             for date, data in sorted(daily_cases_by_date.items())
         ]
         
-        # Prepare data for the map
+        # Get latest recommendations for all states
+        latest_recommendations = {}
+        for state in [data.state for data in latest_data]:
+            recommendation = Recommendation.query.filter_by(
+                state=state
+            ).order_by(desc(Recommendation.date)).first()
+            
+            if recommendation:
+                latest_recommendations[state] = recommendation
+        
+        # Prepare data for the map using recommendations
         covid_data = {}
         for data in latest_data:
-            # Calculate risk level based on positive rate
-            positive_rate = data.positive / data.totalTestResults if data.totalTestResults > 0 else 0
+            recommendation = latest_recommendations.get(data.state)
             
-            if positive_rate < 0.05:
+            if recommendation:
+                # Determine risk level based on recommendation's risk_level
                 risk_level = "Low"
-            elif positive_rate < 0.1:
-                risk_level = "Medium"
-            elif positive_rate < 0.15:
-                risk_level = "High"
-            else:
-                risk_level = "Critical"
-            
-            # Calculate trend for this state
-            fourteen_days_ago = data.date - timedelta(days=14)
-            old_data = PandemicData.query.filter(
-                PandemicData.state == data.state,
-                PandemicData.date >= fourteen_days_ago,
-                PandemicData.date < data.date
-            ).order_by(PandemicData.date.asc()).first()
-            
-            if old_data:
-                case_change = ((data.positive - old_data.positive) / old_data.positive) * 100
-                if case_change > 20:
-                    state_trend = "Increasing"
-                elif case_change < -20:
-                    state_trend = "Decreasing"
-                else:
-                    state_trend = "Stable"
-            else:
-                state_trend = "Unknown"
-            
-            # Estimate active cases (simplified)
-            active_cases_state = int(data.positive * 0.15)
-            
-            # Determine if state should be confined
-            # A state is considered confined if:
-            # 1. Risk level is Critical OR
-            # 2. Positive rate > 15% OR
-            # 3. 14-day trend is increasing with high positive rate
-            is_confined = (
-                risk_level == "Critical" or
-                positive_rate > 0.15 or
-                (state_trend == "Increasing" and positive_rate > 0.1)
-            )
-            
-            covid_data[data.state] = {
-                'total_cases': data.positive,
-                'active_cases': active_cases_state,
-                'deaths': data.death,
-                'risk_level': risk_level,
-                'abbr': get_state_abbreviation(data.state),
-                'is_confined': is_confined,
-                'trend': state_trend
-            }
+                if recommendation.risk_level >= 50:
+                    risk_level = "Critical"
+                elif recommendation.risk_level >= 30:
+                    risk_level = "High"
+                elif recommendation.risk_level > 25:
+                    risk_level = "Medium"
+                
+                # Determine if state is confined based on confinement_level
+                is_confined = recommendation.confinement_level in ['Selective', 'Strict', 'Immediate']
+                
+                covid_data[data.state] = {
+                    'total_cases': data.positive,
+                    'active_cases': int(data.positive * 0.15),  # Estimate active cases
+                    'deaths': data.death,
+                    'risk_level': risk_level,
+                    'abbr': get_state_abbreviation(data.state),
+                    'is_confined': is_confined,
+                    'trend': "Stable"  # Default trend
+                }
         
         # Create a class-like object for national data
         class NationalData:
@@ -284,9 +284,6 @@ def dashboard():
 @bp.route('/decision-support')
 @login_required
 def decision_support():
-    # Update predictions before showing decision support
-    update_predictions()
-    
     # Get the latest data for the state
     latest_data = PandemicData.query.filter(
         PandemicData.state == current_user.state_name

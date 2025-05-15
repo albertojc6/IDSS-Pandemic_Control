@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, SelectField, DateField, SubmitField, IntegerField, FloatField
-from wtforms.validators import DataRequired, Optional, NumberRange
+from wtforms.validators import DataRequired, Optional, NumberRange, InputRequired
 from datetime import datetime
 
 class CovidStatsForm(FlaskForm):
@@ -63,20 +63,16 @@ class CovidStatsForm(FlaskForm):
 
 class DailyStatsForm(FlaskForm):
     # Daily increase fields
-    positiveIncrease = IntegerField('New Positive Cases', validators=[DataRequired(), NumberRange(min=0)])
-    negativeIncrease = IntegerField('New Negative Cases', validators=[DataRequired(), NumberRange(min=0)])
-    totalTestResultsIncrease = IntegerField('New Test Results', validators=[DataRequired(), NumberRange(min=0)])
-    deathIncrease = IntegerField('New Deaths', validators=[DataRequired(), NumberRange(min=0)])
-    hospitalizedIncrease = IntegerField('New Hospitalizations', validators=[DataRequired(), NumberRange(min=0)])
+    positiveIncrease = IntegerField('New Positive Cases', validators=[InputRequired(), NumberRange(min=0)])
+    negativeIncrease = IntegerField('New Negative Cases', validators=[InputRequired(), NumberRange(min=0)])
+    totalTestResultsIncrease = IntegerField('New Test Results', validators=[InputRequired(), NumberRange(min=0)])
+    deathIncrease = IntegerField('New Deaths', validators=[InputRequired(), NumberRange(min=0)])
+    hospitalizedIncrease = IntegerField('New Hospitalizations', validators=[InputRequired(), NumberRange(min=0)])
     
-    # Vaccination data
-    Dose1_Total = IntegerField('Total First Doses', validators=[DataRequired(), NumberRange(min=0)])
-    Dose1_Total_pct = FloatField('First Doses %', validators=[DataRequired(), NumberRange(min=0, max=100)])
-    Dose1_65Plus = IntegerField('First Doses 65+', validators=[DataRequired(), NumberRange(min=0)])
-    Dose1_65Plus_pct = FloatField('First Doses 65+ %', validators=[DataRequired(), NumberRange(min=0, max=100)])
-    Complete_Total = IntegerField('Total Completed Vaccinations', validators=[DataRequired(), NumberRange(min=0)])
-    Complete_Total_pct = FloatField('Completed Vaccinations %', validators=[DataRequired(), NumberRange(min=0, max=100)])
-    Complete_65Plus = IntegerField('Completed Vaccinations 65+', validators=[DataRequired(), NumberRange(min=0)])
-    Complete_65Plus_pct = FloatField('Completed Vaccinations 65+ %', validators=[DataRequired(), NumberRange(min=0, max=100)])
+    # Vaccination data - only increases
+    Dose1_Increase = IntegerField('New First Doses', validators=[InputRequired(), NumberRange(min=0)])
+    Complete_Increase = IntegerField('New Completed Vaccinations', validators=[InputRequired(), NumberRange(min=0)])
+    Dose1_65Plus_Increase = IntegerField('New First Doses (65+)', validators=[InputRequired(), NumberRange(min=0)])
+    Complete_65Plus_Increase = IntegerField('New Completed Vaccinations (65+)', validators=[InputRequired(), NumberRange(min=0)])
     
     submit = SubmitField('Submit Daily Statistics')

@@ -2,11 +2,14 @@ from flask import Flask, redirect, url_for
 from config import Config
 from app.extensions import db, login_manager, bcrypt, migrate
 import pandas as pd
-from app.models import PandemicData, User
+from app.models import PandemicData, User, StaticStateData, Prediction
 import os
 from sqlalchemy import text
 from pathlib import Path
 from app.services.prophet_predictor import ProphetPredictor
+from datetime import datetime, timedelta
+from sqlalchemy import desc
+from app.services.fuzzy_epidemiology import FuzzyEpidemiology
 
 def reset_database(app):
     """
@@ -48,12 +51,70 @@ def create_state_users(app):
         
         db.session.commit()
 
-def load_initial_data(app):
+def load_static_state_data(app):
     """
-    Load initial COVID-19 data from the CSV file if the database is empty.
+    Load static state-level data from the CSV file if the database is empty.
     """
     with app.app_context():
         # Check if we already have data
+        if StaticStateData.query.first() is None:
+            try:
+                # Get the path to the CSV file
+                base_path = Path(__file__).parent.parent
+                csv_path = base_path / "data" / "preprocessed" / "dataMatrix" / "static_stateMatrix.csv"
+                
+                if csv_path.exists():
+                    # Read the CSV file
+                    df = pd.read_csv(csv_path)
+                    
+                    # Process each row and create StaticStateData entries
+                    records_added = 0
+                    for _, row in df.iterrows():
+                        data = StaticStateData(
+                            state=row['state'],
+                            no_coverage=row['no_coverage'],
+                            private_coverage=row['private_coverage'],
+                            public_coverage=row['public_coverage'],
+                            labor_cov_diff=row['labor_cov_diff'],
+                            bedsState_local_government=row['bedsState_local_government'],
+                            bedsNon_profit=row['bedsNon_profit'],
+                            bedsFor_profit=row['bedsFor_profit'],
+                            bedsTotal=row['bedsTotal'],
+                            population_state=row['population_state'],
+                            pop_density_state=row['pop_density_state'],
+                            pop_0_9=row['pop_0-9'],
+                            pop_10_19=row['pop_10-19'],
+                            pop_20_29=row['pop_20-29'],
+                            pop_30_39=row['pop_30-39'],
+                            pop_40_49=row['pop_40-49'],
+                            pop_50_59=row['pop_50-59'],
+                            pop_60_69=row['pop_60-69'],
+                            pop_70_79=row['pop_70-79'],
+                            pop_80_plus=row['pop_80+'],
+                            Low_SVI_CTGY=row['Low_SVI_CTGY'],
+                            Moderate_Low_SVI_CTGY=row['Moderate_Low_SVI_CTGY'],
+                            Moderate_High_SVI_CTGY=row['Moderate_High_SVI_CTGY'],
+                            High_SVI_CTGY=row['High_SVI_CTGY'],
+                            Metro=row['Metro'],
+                            Non_metro=row['Non-metro']
+                        )
+                        db.session.add(data)
+                        records_added += 1
+                    
+                    db.session.commit()
+                    app.logger.info(f'Successfully imported {records_added} records from static_stateMatrix.csv')
+                else:
+                    app.logger.warning('static_stateMatrix.csv not found in data directory')
+            except Exception as e:
+                app.logger.error(f'Error importing static state data: {str(e)}')
+                db.session.rollback()
+
+def load_initial_data(app):
+    """
+    Load initial COVID-19 data and static state data from the CSV files if the database is empty.
+    """
+    with app.app_context():
+        # Load pandemic data
         if PandemicData.query.first() is None:
             try:
                 # Get the path to the CSV file
@@ -103,7 +164,65 @@ def load_initial_data(app):
                 else:
                     app.logger.warning('daily_covidMatrix.csv not found in data directory')
             except Exception as e:
-                app.logger.error(f'Error importing data: {str(e)}')
+                app.logger.error(f'Error importing pandemic data: {str(e)}')
+                db.session.rollback()
+        
+        # Load static state data
+        load_static_state_data(app)
+
+def generate_initial_predictions(app):
+    """
+    Generate initial predictions and recommendations for all states using their latest available data.
+    """
+    with app.app_context():
+        predictor = app.prophet_predictor
+        fuzzy_system = FuzzyEpidemiology()
+        
+        # Get list of states
+        states = [state[0] for state in PandemicData.query.with_entities(PandemicData.state).distinct().all()]
+        
+        # Make predictions and recommendations for each state
+        for state in states:
+            try:
+                # Get the latest date for this specific state
+                latest_state_date = PandemicData.query.filter_by(
+                    state=state
+                ).order_by(desc(PandemicData.date)).first()
+                
+                if not latest_state_date:
+                    app.logger.warning(f"No data found for state {state}")
+                    continue
+                    
+                latest_date = latest_state_date.date
+                latest_datetime = datetime.combine(latest_date, datetime.min.time())
+                
+                # Check if prediction already exists for this state and date
+                existing_prediction = Prediction.query.filter_by(
+                    state=state,
+                    date=latest_date
+                ).first()
+                
+                if not existing_prediction:
+                    # Generate prediction
+                    prediction = predictor.predict_for_state(state, latest_datetime)
+                    db.session.add(prediction)
+                    db.session.commit()
+                    app.logger.info(f'Generated prediction for {state} using data from {latest_date}')
+                    
+                    # Generate recommendation
+                    try:
+                        recommendation = fuzzy_system.get_knowledge(state, latest_date)
+                        app.logger.info(f'Generated recommendation for {state} with risk level: {recommendation.risk_level}')
+                        print(f'Generated recommendation for {state}:')
+                        print(f'  - Risk Level: {recommendation.risk_level}')
+                        print(f'  - Confinement: {recommendation.confinement_level}')
+                        print(f'  - Beds: {recommendation.beds_recommendation}')
+                        print(f'  - Vaccination: {recommendation.vaccination_percentage}%')
+                    except Exception as e:
+                        app.logger.error(f'Error generating recommendation for {state}: {str(e)}')
+                        db.session.rollback()
+            except Exception as e:
+                app.logger.error(f'Error making prediction for {state}: {str(e)}')
                 db.session.rollback()
 
 def create_app(config_class=Config):
@@ -128,12 +247,6 @@ def create_app(config_class=Config):
     login_manager.init_app(app)  # User authentication
     bcrypt.init_app(app)  # Password hashing
     
-    # Initialize ProphetPredictor
-    with app.app_context():
-        predictor = ProphetPredictor()
-        predictor.load_models()
-        app.prophet_predictor = predictor
-    
     # Register blueprints for different sections of the application
     from app.auth import bp as auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')  # Authentication routes
@@ -147,30 +260,21 @@ def create_app(config_class=Config):
     # Import models after extensions are initialized to avoid circular imports
     from app import models
     
-    # Create database tables if they don't exist
+    # Create database tables and load initial data
     with app.app_context():
+        # Create all tables first
         db.create_all()
-        # Load initial data from CSV
+        
+        # Load initial data from CSV files
         load_initial_data(app)
         
-        # Create predictions database if it doesn't exist
-        try:
-            # Check if predictions table exists
-            db.session.execute(text("SELECT 1 FROM prediction LIMIT 1"))
-        except Exception:
-            # Create predictions table
-            db.session.execute(text("""
-                CREATE TABLE IF NOT EXISTS prediction (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    state VARCHAR(2) NOT NULL,
-                    date DATE NOT NULL,
-                    positive_increase_sum INTEGER NOT NULL,
-                    hospitalized_increase_sum INTEGER NOT NULL,
-                    death_increase_sum INTEGER NOT NULL,
-                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-                )
-            """))
-            db.session.commit()
+        # Initialize ProphetPredictor after data is loaded
+        predictor = ProphetPredictor()
+        predictor.load_models()
+        app.prophet_predictor = predictor
+        
+        # Generate initial predictions
+        generate_initial_predictions(app)
     
     # Root route that redirects to dashboard
     @app.route('/')

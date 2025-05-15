@@ -1,7 +1,7 @@
 from flask import render_template, request, jsonify, flash, redirect, url_for, current_app
 from app.stats import bp
 from app.stats.forms import CovidStatsForm, DailyStatsForm
-from app.models import PandemicData
+from app.models import PandemicData, StaticStateData, Prediction
 from app.utils.data_manager import import_csv_data, get_pandemic_data, get_states_list, get_time_series_data
 from app.extensions import db
 import os
@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from flask_login import login_required, current_user
 from sqlalchemy import desc
 from app.main.routes import update_predictions
+from app.services.fuzzy_epidemiology import FuzzyEpidemiology
 
 @bp.route('/')
 @login_required
@@ -132,7 +133,16 @@ def api_states():
 def daily_stats():
     form = DailyStatsForm()
     
-    # Get the last day's data for the selected state
+    # Get state's static data
+    state_data = StaticStateData.query.filter_by(state=current_user.state_name).first()
+    if not state_data:
+        flash('No static data found for your state.', 'error')
+        return redirect(url_for('main.index'))
+    
+    # Calculate population over 65
+    pop_65_plus = (state_data.pop_60_69 / 2 + state_data.pop_70_79 + state_data.pop_80_plus) * state_data.population_state
+    
+    # Get last day's data for the state
     last_day_data = PandemicData.query.filter_by(
         state=current_user.state_name
     ).order_by(desc(PandemicData.date)).first()
@@ -140,8 +150,18 @@ def daily_stats():
     # If there's no previous data, use today's date, otherwise use last date + 1 day
     if last_day_data:
         today = last_day_data.date + timedelta(days=1)
+        
+        # Calculate active cases (sum of positive increases over last 14 days)
+        fourteen_days_ago = last_day_data.date - timedelta(days=14)
+        daily_data = PandemicData.query.filter(
+            PandemicData.date >= fourteen_days_ago,
+            PandemicData.state == current_user.state_name
+        ).order_by(PandemicData.date).all()
+        
+        active_cases = sum(record.positiveIncrease for record in daily_data)
     else:
         today = datetime.now().date()
+        active_cases = 0
     
     # Check if data already exists for the calculated date
     existing_data = PandemicData.query.filter_by(
@@ -153,6 +173,8 @@ def daily_stats():
         # If data exists, show the existing data instead of the form
         return render_template('stats/daily_stats_view.html', 
                              data=existing_data,
+                             state_data=state_data,
+                             pop_65_plus=pop_65_plus,
                              title='Today\'s Statistics')
     
     if form.validate_on_submit():
@@ -162,6 +184,28 @@ def daily_stats():
         death = (last_day_data.death + form.deathIncrease.data) if last_day_data else form.deathIncrease.data
         total = positive + form.negativeIncrease.data
         posNeg = total
+        
+        # Calculate vaccination totals and percentages
+        Dose1_Total = (last_day_data.Dose1_Total + form.Dose1_Increase.data) if last_day_data else form.Dose1_Increase.data
+        Complete_Total = (last_day_data.Complete_Total + form.Complete_Increase.data) if last_day_data else form.Complete_Increase.data
+        
+        # Calculate 65+ vaccination totals and percentages
+        Dose1_65Plus = (last_day_data.Dose1_65Plus + form.Dose1_65Plus_Increase.data) if last_day_data else form.Dose1_65Plus_Increase.data
+        Complete_65Plus = (last_day_data.Complete_65Plus + form.Complete_65Plus_Increase.data) if last_day_data else form.Complete_65Plus_Increase.data
+        
+        # Calculate percentages based on state population
+        Dose1_Total_pct = round((Dose1_Total / state_data.population_state) * 100, 1)
+        Complete_Total_pct = round((Complete_Total / state_data.population_state) * 100, 1)
+        
+        # Calculate 65+ percentages using the correct population denominator
+        Dose1_65Plus_pct = round((Dose1_65Plus / pop_65_plus) * 100, 1) if pop_65_plus > 0 else 0
+        Complete_65Plus_pct = round((Complete_65Plus / pop_65_plus) * 100, 1) if pop_65_plus > 0 else 0
+        
+        # Ensure percentages don't exceed 100%
+        Dose1_Total_pct = min(Dose1_Total_pct, 100)
+        Complete_Total_pct = min(Complete_Total_pct, 100)
+        Dose1_65Plus_pct = min(Dose1_65Plus_pct, 100)
+        Complete_65Plus_pct = min(Complete_65Plus_pct, 100)
         
         # Create new record
         new_data = PandemicData(
@@ -177,36 +221,64 @@ def daily_stats():
             posNeg=posNeg,
             deathIncrease=form.deathIncrease.data,
             hospitalizedIncrease=form.hospitalizedIncrease.data,
-            Dose1_Total=form.Dose1_Total.data,
-            Dose1_Total_pct=form.Dose1_Total_pct.data,
-            Dose1_65Plus=form.Dose1_65Plus.data,
-            Dose1_65Plus_pct=form.Dose1_65Plus_pct.data,
-            Complete_Total=form.Complete_Total.data,
-            Complete_Total_pct=form.Complete_Total_pct.data,
-            Complete_65Plus=form.Complete_65Plus.data,
-            Complete_65Plus_pct=form.Complete_65Plus_pct.data
+            Dose1_Total=Dose1_Total,
+            Dose1_Total_pct=Dose1_Total_pct,
+            Complete_Total=Complete_Total,
+            Complete_Total_pct=Complete_Total_pct,
+            Dose1_65Plus=Dose1_65Plus,
+            Dose1_65Plus_pct=Dose1_65Plus_pct,
+            Complete_65Plus=Complete_65Plus,
+            Complete_65Plus_pct=Complete_65Plus_pct
         )
         
         try:
             db.session.add(new_data)
             db.session.commit()
             
-            # Update predictions after new data is added
-            update_predictions()
-            
-            flash('Daily statistics submitted successfully!', 'success')
+            # Update predictions for the logged-in state
+            try:
+                update_predictions(current_user.state_name)
+                
+                # Get the latest prediction to ensure it exists
+                latest_prediction = Prediction.query.filter_by(
+                    state=current_user.state_name,
+                    date=today
+                ).order_by(desc(Prediction.created_at)).first()
+                
+                if not latest_prediction:
+                    raise ValueError("Prediction was not generated successfully")
+                
+                # Generate recommendations
+                fuzzy_system = FuzzyEpidemiology()
+                recommendation = fuzzy_system.get_knowledge(current_user.state_name, today)
+                print(f'\nGenerated recommendations for {current_user.state_name}:')
+                print(f'  - Risk Level: {recommendation.risk_level}')
+                print(f'  - Confinement: {recommendation.confinement_level}')
+                print(f'  - Beds: {recommendation.beds_recommendation}')
+                print(f'  - Vaccination: {recommendation.vaccination_percentage}%')
+                flash('Daily statistics, predictions, and recommendations generated successfully!', 'success')
+            except Exception as e:
+                print(f'Error in prediction/recommendation generation: {str(e)}')
+                flash('Daily statistics submitted, but could not generate predictions and recommendations. Please try again later.', 'warning')
+                db.session.rollback()
             
             # After successful submission, show the submitted data
             return render_template('stats/daily_stats_view.html', 
                                  data=new_data,
+                                 state_data=state_data,
+                                 pop_65_plus=pop_65_plus,
                                  title='Today\'s Statistics')
         except Exception as e:
             db.session.rollback()
             flash('Error submitting daily statistics. Please try again.', 'error')
-            current_app.logger.error(f'Error submitting daily statistics: {str(e)}')
+            print(f'Error submitting daily statistics: {str(e)}')
     
     return render_template('stats/daily_stats_form.html', 
                          form=form, 
                          today=today,
                          state=current_user.state_name,
+                         last_day_data=last_day_data,
+                         active_cases=active_cases,
+                         state_data=state_data,
+                         pop_65_plus=pop_65_plus,
                          title='Submit Daily Statistics')
