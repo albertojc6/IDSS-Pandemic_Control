@@ -159,9 +159,7 @@ class ProphetPredictor:
         
         # Get temporal features from training data
         temporal_features = [col for col in df_train.columns if col not in ['ds', 'state', 'date'] + self.target_lst]
-        print(temporal_features)
         last_temporal = df_train[temporal_features].iloc[-1].values
-        print(last_temporal)
         
         # Get static features and rename columns
         static_features = [col for col in state_static.columns if col != 'state']
