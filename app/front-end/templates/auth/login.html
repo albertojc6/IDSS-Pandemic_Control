@@ -4,72 +4,100 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IDSS Pandemic Management - Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-light: #f5f7fa;
-            --bg-card: #ffffff;
-            --text-primary: #333333;
-            --text-secondary: #6b7280;
-            --accent-blue: #5a9bd5;
-            --accent-green: #7bc043;
-            --input-bg: #f9fafb;
-            --input-border: #e5e7eb;
-            --button-bg: #2d389c;
-            --button-hover: #4a8bc5;
-            --shadow: rgba(0, 0, 0, 0.1);
+            --bg-gradient-start: #f8fafc;
+            --bg-gradient-end: #e2e8f0;
+            --bg-card: rgba(255, 255, 255, 0.95);
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --accent-primary: #2d389c;
+            --accent-secondary: #4f46e5;
+            --input-bg: #f8fafc;
+            --input-border: #e2e8f0;
+            --input-focus-border: #2d389c;
+            --button-gradient-start: #2d389c;
+            --button-gradient-end: #4f46e5;
+            --error-color: #ef4444;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-light);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
             color: var(--text-primary);
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
-            padding: 0;
+            padding: 2rem;
+            line-height: 1.5;
         }
         
         .container {
             width: 100%;
-            max-width: 700px;
-            text-align: center;
+            max-width: 440px;
         }
         
         .login-card {
-            background-color: var(--bg-card);
-            border-radius: 20px;
-            padding: 80px;
-            box-shadow: 0 4px 15px var(--shadow);
+            background: var(--bg-card);
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            box-shadow: var(--shadow-lg);
+            backdrop-filter: blur(10px);
         }
         
         h1 {
-            font-size: 1.6rem;
-            margin-bottom: 30px;
+            font-size: 1.5rem;
+            font-weight: 600;
             color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            text-align: center;
+            letter-spacing: -0.025em;
         }
         
-        .logo {
-            margin: 20px auto;
-            width: 80px;
-            height: 80px;
+        .heartbeat-logo {
+            margin: 0 auto 2rem;
+            max-width: 80px;
+            text-align: center;
+        }
+        
+        .heartbeat-logo svg {
+            width: 100%;
+            height: auto;
+            opacity: 0.9;
         }
         
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 1.25rem;
             position: relative;
         }
         
         .form-control {
             width: 100%;
-            padding: 14px 40px 14px 15px;
+            padding: 0.875rem 2.5rem 0.875rem 1rem;
             background-color: var(--input-bg);
-            border: 1px solid var(--input-border);
-            border-radius: 5px;
+            border: 2px solid var(--input-border);
+            border-radius: 0.75rem;
             color: var(--text-primary);
-            font-size: 1.05rem;
-            box-sizing: border-box;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.15s ease;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--input-focus-border);
+            box-shadow: 0 0 0 3px rgba(45, 56, 156, 0.1);
         }
         
         .form-control::placeholder {
@@ -78,63 +106,62 @@
         
         .icon {
             position: absolute;
-            right: 15px;
+            right: 1rem;
             top: 50%;
             transform: translateY(-50%);
             color: var(--text-secondary);
+            pointer-events: none;
         }
         
         .btn-signin {
             width: 100%;
-            padding: 12px;
-            background-color: var(--button-bg);
+            padding: 0.875rem;
+            background: linear-gradient(135deg, var(--button-gradient-start), var(--button-gradient-end));
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 0.75rem;
             font-size: 1rem;
+            font-weight: 500;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: box-shadow 0.15s ease;
         }
         
         .btn-signin:hover {
-            background-color: var(--button-hover);
+            box-shadow: 0 4px 12px rgba(45, 56, 156, 0.25);
         }
         
-        .heartbeat-logo {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 20px 0;
-        }
-        
-        .heartbeat-logo svg {
-            width: 120px;
-            height: 120px;
-        }
-
         .flash-messages {
-            margin-bottom: 15px;
-            color: #e53e3e;
-            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: var(--error-color);
+            font-size: 0.875rem;
+            text-align: center;
+        }
+        
+        @media (max-width: 640px) {
+            body {
+                padding: 1rem;
+            }
+            
+            .login-card {
+                padding: 2rem;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="login-card">
-            <h1>IDSS pandemic management</h1>
             
-            <div class="heartbeat-logo">
-                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <!-- Heartbeat line -->
-                    <path d="M5,50 L25,50 L30,30 L40,70 L50,40 L60,50 L95,50" stroke="#2d389c" stroke-width="3" fill="none"/>
-                    
-                    <!-- Rounder heart shape -->
-                    <path d="M50,90 C25,70 0,50 0,25 C0,10 10,0 25,0 C35,0 45,10 50,20 C55,10 65,0 75,0 C90,0 100,10 100,25 C100,50 75,70 50,90 Z"                          stroke-width="2" 
-                          fill="#2d389c" 
-                          fill-opacity="0.1"/>
-                </svg>
-            </div>
+            
+            <h1>IDSS Pandemic Management</h1>
             
             {% if get_flashed_messages() %}
             <div class="flash-messages">
@@ -148,12 +175,22 @@
                 {{ form.hidden_tag() }}
                 
                 <div class="form-group">
-                    <input type="text" name="username" class="form-control" placeholder="Username" required>
+                    <input type="text" 
+                           name="username" 
+                           class="form-control" 
+                           placeholder="Enter your username"
+                           autocomplete="username"
+                           required>
                     <span class="icon">👤</span>
                 </div>
                 
                 <div class="form-group">
-                    <input type="password" name="password" class="form-control" placeholder="••••••••••••" required>
+                    <input type="password" 
+                           name="password" 
+                           class="form-control" 
+                           placeholder="Enter your password"
+                           autocomplete="current-password"
+                           required>
                     <span class="icon">🔒</span>
                 </div>
                 
