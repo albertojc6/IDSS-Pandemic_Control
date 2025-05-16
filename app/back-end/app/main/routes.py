@@ -8,6 +8,7 @@ from collections import defaultdict
 from app.main import bp  # Changed to import bp from main blueprint
 from app.extensions import db
 from app.services.prophet_predictor import ProphetPredictor
+from app import check_and_retrain_models
 
 @bp.route('/')  # Changed from main to bp
 def index():
@@ -63,6 +64,9 @@ def update_predictions(state=None):
                 print(f"Death Increase: {latest_state_data.deathIncrease}")
                 print(f"Total Tests: {latest_state_data.totalTestResults}")
                 print("=" * 80)
+            
+            # Check if models need to be retrained
+            check_and_retrain_models(current_app, state)
             
             # Delete existing prediction for this state and date if it exists
             existing_prediction = Prediction.query.filter_by(

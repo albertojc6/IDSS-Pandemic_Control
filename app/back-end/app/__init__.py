@@ -7,6 +7,7 @@ import os
 from sqlalchemy import text
 from pathlib import Path
 from app.services.prophet_predictor import ProphetPredictor
+from app.services.prophet_retrainer import ProphetRetrainer
 from datetime import datetime, timedelta
 from sqlalchemy import desc
 from app.services.fuzzy_epidemiology import FuzzyEpidemiology
@@ -225,6 +226,32 @@ def generate_initial_predictions(app):
                 app.logger.error(f'Error making prediction for {state}: {str(e)}')
                 db.session.rollback()
 
+def check_and_retrain_models(app, state=None):
+    """
+    Check if models need to be retrained and retrain them if necessary.
+    
+    Args:
+        app: Flask application instance
+        state: Optional state code to check and retrain models for
+    """
+    with app.app_context():
+        retrainer = app.prophet_retrainer
+        if state:
+            if retrainer.should_retrain(state):
+                app.logger.info(f"Retraining models for {state}")
+                retrainer.retrain_models(state)
+                # Reload models in predictor
+                app.prophet_predictor.load_models()
+        else:
+            # Check all states
+            states = [state[0] for state in PandemicData.query.with_entities(PandemicData.state).distinct().all()]
+            for state in states:
+                if retrainer.should_retrain(state):
+                    app.logger.info(f"Retraining models for {state}")
+                    retrainer.retrain_models(state)
+            # Reload models in predictor
+            app.prophet_predictor.load_models()
+
 def create_app(config_class=Config):
     """
     Application factory function that creates and configures the Flask application.
@@ -273,8 +300,15 @@ def create_app(config_class=Config):
         predictor.load_models()
         app.prophet_predictor = predictor
         
+        # Initialize ProphetRetrainer
+        retrainer = ProphetRetrainer(app)
+        app.prophet_retrainer = retrainer
+        
         # Generate initial predictions
         generate_initial_predictions(app)
+        
+        # Check if models need to be retrained
+        check_and_retrain_models(app)
     
     # Root route that redirects to dashboard
     @app.route('/')
