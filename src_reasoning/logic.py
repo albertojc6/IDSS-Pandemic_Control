@@ -44,6 +44,13 @@ class FuzzyEpidemiology:
         """
         Set up the fuzzy logic system with antecedents, consequents, and rules.
         """
+        def configure_five_levels(var, ranges, prefixes):
+            var[prefixes[0]] = fuzz.trimf(var.universe, ranges[0])
+            var[prefixes[1]] = fuzz.trimf(var.universe, ranges[1])
+            var[prefixes[2]] = fuzz.trimf(var.universe, ranges[2])
+            var[prefixes[3]] = fuzz.trimf(var.universe, ranges[3])
+            var[prefixes[4]] = fuzz.trimf(var.universe, ranges[4])
+
         # Define input and output variables
         self.ia = ctrl.Antecedent(np.arange(0, 10000, 1), 'ia')  # Incidència acumulada (per 100k)
         self.ocupacio = ctrl.Antecedent(np.arange(0, 101, 1), 'ocupacio')  # Ocupació hospitalària (%)
@@ -53,36 +60,30 @@ class FuzzyEpidemiology:
         self.densitat = ctrl.Antecedent(np.arange(0, 15001, 1), 'densitat')  # Densitat (hab/km²)
         self.risc = ctrl.Consequent(np.arange(0, 101, 1), 'risc')  # Risc de confinament (0-100)
 
-        # Membership functions
-        # IA
-        self.ia['Baixa'] = fuzz.trimf(self.ia.universe, [0, 0, 50])
-        self.ia['Mitjana'] = fuzz.trimf(self.ia.universe, [30, 100, 150])
-        self.ia['Alta'] = fuzz.trimf(self.ia.universe, [130, 200, 10000])
+        configure_five_levels(self.ia, 
+            [[0,0,25], [15,40,75], [60,100,140], [120,150,800], [170,250,10000]],
+            ['Molt Baixa', 'Baixa', 'Moderada', 'Alta', 'Molt Alta'])
 
-        # Ocupació Hospitalària
-        self.ocupacio['Baixa'] = fuzz.trimf(self.ocupacio.universe, [0, 0, 70])
-        self.ocupacio['Moderada'] = fuzz.trimf(self.ocupacio.universe, [60, 75, 80])
-        self.ocupacio['Crítica'] = fuzz.trimf(self.ocupacio.universe, [75, 90, 100])
+        configure_five_levels(self.ocupacio,
+            [[0,0,60], [50,60,70], [60,70,80], [70,80,90], [85,95,100]],
+            ['Molt Baixa', 'Baixa', 'Moderada', 'Alta', 'Molt Alta'])
 
-        # Mortalitat
-        self.mortalitat['Baixa'] = fuzz.trimf(self.mortalitat.universe, [0, 0, 10])
-        self.mortalitat['Mitjana'] = fuzz.trimf(self.mortalitat.universe, [5, 15, 25])
-        self.mortalitat['Alta'] = fuzz.trimf(self.mortalitat.universe, [15, 25, 100])
+        configure_five_levels(self.mortalitat,
+            [[0,0,10], [5,8,12], [10,13,17], [15,18,20], [20,25,2000]],
+            ['Molt Baixa', 'Baixa', 'Moderada', 'Alta', 'Molt Alta'])
 
-        # Letalitat
-        self.letalitat['Baixa'] = fuzz.trimf(self.letalitat.universe, [0, 0, 3])
-        self.letalitat['Mitjana'] = fuzz.trimf(self.letalitat.universe, [1.5, 4, 6.5])
-        self.letalitat['Alta'] = fuzz.trimf(self.letalitat.universe, [5, 10, 100])
+        configure_five_levels(self.letalitat,
+            [[0,0,1.5], [1,2.5,4], [3,5,7], [5,6.5,8], [7,10,100]],
+            ['Molt Baixa', 'Baixa', 'Moderada', 'Alta', 'Molt Alta'])
 
-        # Població >65
-        self.poblacio65['Baixa'] = fuzz.trimf(self.poblacio65.universe, [0, 0, 10])
-        self.poblacio65['Mitjana'] = fuzz.trimf(self.poblacio65.universe, [5, 15, 20])
-        self.poblacio65['Alta'] = fuzz.trimf(self.poblacio65.universe, [18, 30, 30])
+        configure_five_levels(self.poblacio65,
+            [[0,0,7.5], [5,7.5,12.5], [10,12.5,17.5], [15,17.5,22.5], [20,25,100]],
+            ['Molt Baixa', 'Baixa', 'Moderada', 'Alta', 'Molt Alta'])
 
-        # Densitat
-        self.densitat['Baixa'] = fuzz.trimf(self.densitat.universe, [0, 0, 1500])
-        self.densitat['Mitjana'] = fuzz.trimf(self.densitat.universe, [1000, 2000, 3000])
-        self.densitat['Alta'] = fuzz.trimf(self.densitat.universe, [2500, 4000, 40000])
+        configure_five_levels(self.densitat,
+            [[0,0,500], [300,800,1200], [1000,2000,3000], [2500,4000,6000], [5000,8000,15000]],
+            ['Molt Baixa', 'Baixa', 'Moderada', 'Alta', 'Molt Alta'])
+
 
         # Risc
         self.risc['Molt Baix'] = fuzz.trimf(self.risc.universe, [0, 0, 20])
@@ -92,62 +93,61 @@ class FuzzyEpidemiology:
         self.risc['Molt Alt'] = fuzz.trimf(self.risc.universe, [70, 85, 95])
         self.risc['Extrem'] = fuzz.trimf(self.risc.universe, [90, 100, 100])
 
-        # Define rules
-        rule1 = ctrl.Rule(
-            self.ia['Alta'] & self.ocupacio['Crítica'] & self.mortalitat['Alta'],
-            self.risc['Extrem']
-        )
-        rule2 = ctrl.Rule(
-            self.ia['Mitjana'] & self.ocupacio['Moderada'] & (self.poblacio65['Alta'] | self.densitat['Alta']) & 
-            (self.letalitat['Baixa'] | self.letalitat['Mitjana']),
-            self.risc['Alt']
-        )
-        rule3 = ctrl.Rule(
-            self.ia['Baixa'] & self.ocupacio['Baixa'] & self.mortalitat['Baixa'] & self.letalitat['Baixa'],
-            self.risc['Molt Baix']
-        )
-        rule4 = ctrl.Rule(
-            (self.ia['Mitjana'] | self.mortalitat['Mitjana']) & self.densitat['Mitjana'] & self.letalitat['Baixa'],
-            self.risc['Moderat']
-        )
-        rule5 = ctrl.Rule(
-            self.ocupacio['Crítica'] & (self.poblacio65['Alta'] | self.mortalitat['Alta']),
-            self.risc['Molt Alt']
-        )
-        rule6 = ctrl.Rule(
-            self.ia['Alta'] & self.ocupacio['Moderada'] & self.mortalitat['Mitjana'],
-            self.risc['Alt']
-        )
-        rule7 = ctrl.Rule(
-            self.ia['Mitjana'] & (self.poblacio65['Mitjana'] | self.densitat['Mitjana']),
-            self.risc['Moderat']
-        )
-        rule8 = ctrl.Rule(
-            self.mortalitat['Alta'] & (self.ia['Baixa'] | self.ocupacio['Baixa']),
-            self.risc['Alt']
-        )
-        rule9 = ctrl.Rule(
-            self.densitat['Alta'] & self.ia['Mitjana'],
-            self.risc['Alt']
-        )
-        rule10 = ctrl.Rule(
-            self.poblacio65['Alta'] & self.letalitat['Alta'],
-            self.risc['Alt']
-        )
-        rule11 = ctrl.Rule(
-            self.ia['Alta'] & self.ocupacio['Baixa'] & self.letalitat['Baixa'],
-            self.risc['Moderat']
-        )
-        rule12 = ctrl.Rule(
-            self.ia['Baixa'] | self.ocupacio['Baixa'] | self.mortalitat['Baixa'],
-            self.risc['Baix']
-        )
+        rules = [
+        # Regles per escenaris extremes
+        ctrl.Rule(self.ia['Molt Alta'] & self.ocupacio['Molt Alta'], self.risc['Extrem']),
+        ctrl.Rule(self.ocupacio['Molt Alta'] & (self.mortalitat['Molt Alta'] | self.letalitat['Molt Alta']), self.risc['Extrem']),
+        ctrl.Rule(self.ia['Molt Alta'] & (self.densitat['Molt Alta']|self.densitat['Alta']), self.risc['Molt Alt']),
 
-        # Create control system
-        self.risc_ctrl = ctrl.ControlSystem([
-            rule1, rule2, rule3, rule4, rule5, rule6,
-            rule7, rule8, rule9, rule10, rule11, rule12
-        ])
+        # Combinacions altes de 3 factors
+        ctrl.Rule(self.ia['Alta'] & self.ocupacio['Alta'] & self.densitat['Alta'], self.risc['Molt Alt']),
+        ctrl.Rule(self.poblacio65['Molt Alta'] & self.mortalitat['Alta'] & self.letalitat['Alta'], self.risc['Molt Alt']),
+        
+        # Escenaris amb dos factors alts
+        ctrl.Rule(self.ia['Alta'] & self.ocupacio['Moderada'], self.risc['Alt']),
+        ctrl.Rule(self.mortalitat['Alta'] & self.poblacio65['Alta'], self.risc['Alt']),
+        ctrl.Rule((self.densitat['Molt Alta']|self.densitat['Alta']) & self.ia['Moderada'], self.risc['Alt']),
+
+        # Escenaris moderats amb compensacions
+        ctrl.Rule(self.ia['Moderada'] & self.ocupacio['Baixa'] & self.densitat['Moderada'], self.risc['Moderat']),
+        ctrl.Rule(self.mortalitat['Moderada'] & self.letalitat['Baixa'], self.risc['Moderat']),
+        
+        # Interaccions específiques
+        ctrl.Rule((self.ia['Baixa'] | self.ocupacio['Baixa']) & self.poblacio65['Molt Alta'], self.risc['Moderat']),
+
+        ctrl.Rule(self.densitat['Alta'] & self.letalitat['Moderada'], self.risc['Alt']),
+        
+        # Escenaris de risc baix controlat
+        ctrl.Rule(self.ia['Baixa'] & self.ocupacio['Molt Baixa'] & self.mortalitat['Molt Baixa'], self.risc['Molt Baix']),
+        ctrl.Rule(self.densitat['Baixa'] & self.letalitat['Molt Baixa'], self.risc['Baix']),
+        
+        # Regles de transició gradual
+        ctrl.Rule(self.ia['Moderada'] & self.ocupacio['Baixa'] & self.mortalitat['Baixa'], self.risc['Baix']),
+        ctrl.Rule(self.ia['Baixa'] & self.ocupacio['Moderada'] & self.letalitat['Moderada'], self.risc['Moderat']),
+
+        # Combinacions amb població vulnerable
+        ctrl.Rule(self.poblacio65['Alta'] & (self.ia['Baixa'] | self.mortalitat['Baixa']), self.risc['Moderat']),
+        ctrl.Rule(self.poblacio65['Molt Alta'] & self.densitat['Alta'], self.risc['Alt']),
+
+        ctrl.Rule(self.letalitat['Molt Alta'] & self.mortalitat['Moderada'], self.risc['Alt']),
+
+        # Lletalitat elevada + Densitat baixa
+        ctrl.Rule(self.letalitat['Molt Alta'] & self.densitat['Baixa'], self.risc['Moderat']),
+        
+        # Lletalitat elevada + Població vulnerable inexistent
+        ctrl.Rule(self.letalitat['Molt Alta'] & self.poblacio65['Molt Baixa'], self.risc['Alt']),
+        
+        # Lletalitat elevada amb incidència/ocupació controlades
+        ctrl.Rule(self.letalitat['Molt Alta'] & self.ia['Baixa'] & self.ocupacio['Molt Baixa'], self.risc['Moderat']),
+        
+        # Efecte acumulatiu de factors moderats
+        ctrl.Rule((self.ia['Moderada'] | self.mortalitat['Moderada']) & (self.ocupacio['Moderada'] | self.letalitat['Moderada']), self.risc['Moderat']),
+        
+        # Regla residual ultra-específica
+        ctrl.Rule((self.ia['Molt Baixa'] & self.ocupacio['Molt Baixa']) | (self.ocupacio['Molt Baixa'] & self.mortalitat['Molt Baixa']) | (self.ia['Molt Baixa'] & self.letalitat['Molt Baixa']),
+            self.risc['Molt Baix'])
+        ]
+        self.risc_ctrl = ctrl.ControlSystem(rules)
 
     def _calculate_metrics(self, row):
         """
