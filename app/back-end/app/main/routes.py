@@ -9,6 +9,7 @@ from app.main import bp  # Changed to import bp from main blueprint
 from app.extensions import db
 from app.services.prophet_predictor import ProphetPredictor
 from app import check_and_retrain_models
+from app.services.fuzzy_epidemiology import FuzzyEpidemiology
 
 @bp.route('/')  # Changed from main to bp
 def index():
@@ -302,18 +303,37 @@ def decision_support():
         state=current_user.state_name
     ).order_by(desc(Prediction.date)).first()
     
+    # Get latest recommendation for the user's state
+    latest_recommendation = Recommendation.query.filter_by(
+        state=current_user.state_name
+    ).order_by(desc(Recommendation.date)).first()
+    
     # Calculate positive rate
     positive_rate = latest_data.positive / latest_data.totalTestResults if latest_data.totalTestResults > 0 else 0
     
-    # Determine risk level
-    if positive_rate < 0.05:
-        risk_level = "Low"
-    elif positive_rate < 0.1:
-        risk_level = "Medium"
-    elif positive_rate < 0.15:
-        risk_level = "High"
+    # Use fuzzy system risk level if available
+    if latest_recommendation:
+        risk_level = latest_recommendation.risk_level
+        confinement_level = latest_recommendation.confinement_level
+        beds_recommendation = latest_recommendation.beds_recommendation
+        
+        # Obtenir el percentatge de vacunació més recent
+        fuzzy_system = FuzzyEpidemiology()
+        vaccination_percentages = fuzzy_system._recalculate_vaccination_percentages(latest_data.date)
+        vaccination_percentage = vaccination_percentages.get(current_user.state_name, 0.0)
     else:
-        risk_level = "Critical"
+        # Fallback to basic risk level calculation
+        if positive_rate < 0.05:
+            risk_level = "Low"
+        elif positive_rate < 0.1:
+            risk_level = "Medium"
+        elif positive_rate < 0.15:
+            risk_level = "High"
+        else:
+            risk_level = "Critical"
+        confinement_level = "No"
+        beds_recommendation = "Not needed"
+        vaccination_percentage = 0.0
     
     # Calculate 14-day trend
     fourteen_days_ago = latest_data.date - timedelta(days=14)
@@ -337,33 +357,51 @@ def decision_support():
     # Generate recommendations based on metrics
     recommendations = []
     
-    # High priority recommendations
-    if risk_level == "Critical":
+    # High priority recommendations based on confinement level
+    if confinement_level == "Immediate":
         recommendations.append({
             'priority': 'high',
-            'title': 'Immediate Action Required',
-            'description': 'Your state is experiencing critical levels of COVID-19 spread.',
+            'title': 'Immediate Lockdown Required',
+            'description': 'Your state is experiencing critical levels of COVID-19 spread requiring immediate and strict measures.',
             'actions': [
-                'Implement strict social distancing measures',
-                'Consider temporary business closures',
-                'Increase testing capacity',
-                'Prepare healthcare system for surge'
+                'Implement complete lockdown of non-essential activities',
+                'Close all non-essential businesses and services',
+                'Restrict movement to essential purposes only',
+                'Enforce strict curfew measures',
+                'Mobilize additional healthcare resources',
+                'Prepare emergency medical facilities'
             ]
         })
-    elif risk_level == "High":
+    elif confinement_level == "Strict":
         recommendations.append({
             'priority': 'high',
-            'title': 'Urgent Measures Needed',
-            'description': 'COVID-19 spread is at high levels and requires immediate attention.',
+            'title': 'Strict Confinement Measures',
+            'description': 'Severe COVID-19 spread requires strict confinement measures.',
             'actions': [
-                'Enforce mask mandates',
-                'Limit indoor gatherings',
-                'Increase contact tracing efforts',
-                'Monitor healthcare capacity'
+                'Close all non-essential businesses',
+                'Limit gatherings to maximum 2 people',
+                'Implement strict travel restrictions',
+                'Enforce mandatory mask wearing in all public spaces',
+                'Increase healthcare capacity',
+                'Implement emergency response protocols'
+            ]
+        })
+    elif confinement_level == "Selective":
+        recommendations.append({
+            'priority': 'medium',
+            'title': 'Selective Confinement Measures',
+            'description': 'Moderate to high spread requires selective confinement measures.',
+            'actions': [
+                'Close high-risk businesses and venues',
+                'Limit gatherings to maximum 6 people',
+                'Implement regional travel restrictions',
+                'Enforce mask mandates in indoor spaces',
+                'Increase testing and contact tracing',
+                'Prepare for potential escalation'
             ]
         })
     
-    # Medium priority recommendations
+    # Medium priority recommendations based on trend
     if trend == "Increasing":
         recommendations.append({
             'priority': 'medium',
@@ -373,7 +411,9 @@ def decision_support():
                 'Review and strengthen existing measures',
                 'Increase public awareness campaigns',
                 'Prepare for potential escalation',
-                'Monitor high-risk areas'
+                'Monitor high-risk areas',
+                'Enhance testing capacity',
+                'Strengthen contact tracing efforts'
             ]
         })
     
@@ -387,7 +427,9 @@ def decision_support():
                 'Increase testing availability',
                 'Target high-risk communities',
                 'Implement regular testing programs',
-                'Improve test result turnaround time'
+                'Improve test result turnaround time',
+                'Expand testing locations',
+                'Prioritize symptomatic individuals'
             ]
         })
     
@@ -400,7 +442,9 @@ def decision_support():
             'Maintain daily data collection',
             'Monitor key metrics',
             'Update public communications',
-            'Review and adjust measures as needed'
+            'Review and adjust measures as needed',
+            'Coordinate with neighboring states',
+            'Prepare contingency plans'
         ]
     })
     
@@ -410,5 +454,8 @@ def decision_support():
         positive_rate=positive_rate,
         trend=trend,
         recommendations=recommendations,
-        latest_prediction=latest_prediction
+        latest_prediction=latest_prediction,
+        confinement_level=confinement_level,
+        beds_recommendation=beds_recommendation,
+        vaccination_percentage=vaccination_percentage
     )

@@ -290,6 +290,100 @@ class FuzzyEpidemiology:
             'risk_level': risk_level
         }
 
+    def _recalculate_vaccination_percentages(self, date: date):
+        """
+        Recalcula els percentatges de vacunació per a tots els estats basant-se en el risc total.
+        
+        Args:
+            date (date): Data per la qual recalcular els percentatges
+            
+        Returns:
+            dict: Diccionari amb els nous percentatges de vacunació per cada estat
+        """
+        all_states_risk = []
+        
+        # Obtenir el risc per a tots els estats
+        for state_name in self.df_demographic['state'].unique():
+            try:
+                # Obtenir la predicció més recent per a cada estat
+                state_prediction = Prediction.query.filter_by(
+                    state=state_name,
+                    date=date
+                ).order_by(desc(Prediction.created_at)).first()
+                
+                if not state_prediction:
+                    continue
+                
+                # Obtenir dades demogràfiques per a aquest estat
+                state_demographic = self.df_demographic[self.df_demographic['state'] == state_name]
+                
+                if not state_demographic.empty:
+                    # Crear dades de l'estat amb prediccions
+                    state_data = pd.DataFrame([{
+                        'state': state_name,
+                        'positiveIncrease': state_prediction.positive_increase_sum,
+                        'hospitalizedIncrease': state_prediction.hospitalized_increase_sum,
+                        'deathIncrease': state_prediction.death_increase_sum
+                    }])
+                    
+                    # Combinar amb dades demogràfiques
+                    state_combined = pd.merge(
+                        state_demographic,
+                        state_data,
+                        on="state",
+                        how="inner"
+                    )
+                    
+                    if not state_combined.empty:
+                        # Calcular mètriques i nivell de risc
+                        state_combined = state_combined.apply(self._calculate_metrics, axis=1)
+                        state_combined['risk_level'] = state_combined.apply(self._calculate_risk, axis=1)
+                        
+                        risk_level = float(state_combined['risk_level'].iloc[0])
+                        all_states_risk.append({
+                            'state': state_name,
+                            'risk_level': risk_level
+                        })
+            except Exception as e:
+                print(f"Error calculating risk for {state_name}: {str(e)}")
+                continue
+        
+        if not all_states_risk:
+            raise ValueError("No risk levels could be calculated for any state")
+        
+        # Convertir a DataFrame i calcular percentatges de vacunació
+        df_risk = pd.DataFrame(all_states_risk)
+        df_risk = df_risk.sort_values(by='risk_level', ascending=False)
+        
+        # Calcular risc total
+        total_risk = df_risk['risk_level'].sum()
+        
+        # Calcular percentatge de vacunació per cada estat
+        df_risk['vaccination_pct'] = (df_risk['risk_level'] / total_risk * 100).round(2)
+        
+        # Ajustar per errors d'arrodoniment
+        diff = 100 - df_risk['vaccination_pct'].sum()
+        if diff != 0:
+            idx_max = df_risk['vaccination_pct'].idxmax()
+            df_risk.at[idx_max, 'vaccination_pct'] += diff
+        
+        # Convertir a diccionari per fàcil accés
+        vaccination_dict = dict(zip(df_risk['state'], df_risk['vaccination_pct']))
+        
+        # Imprimir taula de percentatges
+        print("\nTaula de percentatges de vacunació per estat:")
+        print("=" * 50)
+        print(f"{'Estat':<15} {'Risc':<10} {'% Vacunació':<15}")
+        print("-" * 50)
+        for _, row in df_risk.iterrows():
+            print(f"{row['state']:<15} {row['risk_level']:<10.2f} {row['vaccination_pct']:<15.2f}")
+        print("=" * 50)
+        print(f"Total risc: {total_risk:.2f}")
+        print(f"Suma percentatges: {df_risk['vaccination_pct'].sum():.2f}%")
+        print("=" * 50 + "\n")
+        
+        return vaccination_dict
+
     def get_knowledge(self, state: str, date: date) -> Recommendation:
         """
         Process data for a single state and date to generate recommendations.
@@ -346,89 +440,11 @@ class FuzzyEpidemiology:
         # Calculate risk level
         self.combined_data['risk_level'] = self.combined_data.apply(self._calculate_risk, axis=1)
 
-        # Get risk levels for all states
-        all_states_risk = []
-        for state_name in self.df_demographic['state'].unique():
-            try:
-                # For the current state, use the exact date
-                # For other states, get their latest prediction
-                if state_name == state:
-                    state_prediction = Prediction.query.filter_by(
-                        state=state_name,
-                        date=date
-                    ).order_by(desc(Prediction.created_at)).first()
-                else:
-                    state_prediction = Prediction.query.filter_by(
-                        state=state_name
-                    ).order_by(desc(Prediction.date), desc(Prediction.created_at)).first()
-                
-                if state_prediction:
-                    # Check cache first
-                    cached_risk = self._get_cached_risk(state_name, state_prediction.id)
-                    if cached_risk is not None:
-                        all_states_risk.append({
-                            'state': state_name,
-                            'risk_level': cached_risk
-                        })
-                        continue
-
-                    # Get demographic data for this state
-                    state_demographic = self.df_demographic[self.df_demographic['state'] == state_name]
-                    
-                    if not state_demographic.empty:
-                        # Create state data with predictions
-                        state_data = pd.DataFrame([{
-                            'state': state_name,
-                            'positiveIncrease': state_prediction.positive_increase_sum,
-                            'hospitalizedIncrease': state_prediction.hospitalized_increase_sum,
-                            'deathIncrease': state_prediction.death_increase_sum
-                        }])
-                        
-                        # Merge with demographic data
-                        state_combined = pd.merge(
-                            state_demographic,
-                            state_data,
-                            on="state",
-                            how="inner"
-                        )
-                        
-                        if not state_combined.empty:
-                            # Calculate metrics and risk level
-                            state_combined = state_combined.apply(self._calculate_metrics, axis=1)
-                            state_combined['risk_level'] = state_combined.apply(self._calculate_risk, axis=1)
-                            
-                            risk_level = float(state_combined['risk_level'].iloc[0])
-                            
-                            # Cache the result
-                            self._cache_risk(state_name, state_prediction.id, risk_level)
-                            
-                            all_states_risk.append({
-                                'state': state_name,
-                                'risk_level': risk_level
-                            })
-            except Exception as e:
-                print(f"Error calculating risk for {state_name}: {str(e)}")
-                continue
-
-        if not all_states_risk:
-            raise ValueError("No risk levels could be calculated for any state")
-
-        # Convert to DataFrame and calculate vaccination percentages
-        df_risk = pd.DataFrame(all_states_risk)
-        df_risk = df_risk.sort_values(by='risk_level', ascending=False)
-        total_risk = df_risk['risk_level'].sum()
+        # Recalcular percentatges de vacunació per a tots els estats
+        vaccination_percentages = self._recalculate_vaccination_percentages(date)
         
-        # Calculate vaccination percentage for each state
-        df_risk['vaccination_pct'] = (df_risk['risk_level'] / total_risk * 100).round(2)
-        
-        # Adjust for rounding errors to ensure total is exactly 100%
-        diff = 100 - df_risk['vaccination_pct'].sum()
-        if diff != 0:
-            idx_max = df_risk['vaccination_pct'].idxmax()
-            df_risk.at[idx_max, 'vaccination_pct'] += diff
-
-        # Get vaccination percentage for current state
-        state_vaccination_pct = float(df_risk[df_risk['state'] == state]['vaccination_pct'].iloc[0])
+        # Obtenir el percentatge de vacunació per a l'estat actual
+        state_vaccination_pct = vaccination_percentages.get(state, 0.0)
 
         # Determine confinement
         risk_level = float(self.combined_data['risk_level'].iloc[0])

@@ -16,15 +16,19 @@
                 <div class="status-cards">
                     <div class="status-card">
                         <h3>Risk Level</h3>
-                        <p class="status-value {{ risk_level|lower }}">{{ risk_level }}</p>
+                        <p class="status-value {{ risk_level|float|round|int|string|lower }}">{{ "%.2f"|format(risk_level) }}</p>
                     </div>
                     <div class="status-card">
-                        <h3>Positive Rate</h3>
-                        <p class="status-value">{{ "%.1f"|format(positive_rate * 100) }}%</p>
+                        <h3>Confinement</h3>
+                        <p class="status-value {{ confinement_level|lower }}">{{ confinement_level }}</p>
                     </div>
                     <div class="status-card">
-                        <h3>14-Day Trend</h3>
-                        <p class="status-value {{ trend|lower }}">{{ trend }}</p>
+                        <h3>Beds Status</h3>
+                        <p class="status-value">{{ beds_recommendation }}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>Vaccination %</h3>
+                        <p class="status-value">{{ "%.2f"|format(vaccination_percentage) }}%</p>
                     </div>
                 </div>
             </div>
@@ -281,7 +285,7 @@
 
     .status-cards {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 20px;
     }
 
@@ -316,6 +320,25 @@
     .status-value.increasing { color: #F44336; }
     .status-value.decreasing { color: #4CAF50; }
     .status-value.stable { color: #2196F3; }
+    
+    /* Estils per als nous estats */
+    .status-value.selective { color: #FF9800; }
+    .status-value.strict { color: #F44336; }
+    .status-value.immediate { color: #D32F2F; }
+    .status-value.no { color: #4CAF50; }
+    
+    /* Estils per al risc numèric */
+    .status-value.0 { color: #4CAF50; }
+    .status-value.1 { color: #4CAF50; }
+    .status-value.2 { color: #8BC34A; }
+    .status-value.3 { color: #FFC107; }
+    .status-value.4 { color: #FF9800; }
+    .status-value.5 { color: #F44336; }
+    .status-value.6 { color: #D32F2F; }
+    .status-value.7 { color: #B71C1C; }
+    .status-value.8 { color: #7F0000; }
+    .status-value.9 { color: #4A0000; }
+    .status-value.10 { color: #000000; }
 
     .forecast-description {
         text-align: center;
