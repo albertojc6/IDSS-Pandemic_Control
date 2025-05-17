@@ -79,7 +79,7 @@ class ProphetRetrainer:
         self.app.logger.info(f"Latest data date: {latest_data.date}, Last model update: {last_training_date}")
         
         # Always retrain if there is any new data
-        should_retrain = days_since_training >= 1   # Changed to >= 7 to only retrain when there's new data
+        should_retrain = days_since_training >= 7   # Changed to >= 7 to only retrain when there's new data
         if should_retrain:
             print(f"Retraining needed for {state} - {days_since_training} days of new data")
             self.app.logger.info(f"Retraining needed for {state} - {days_since_training} days of new data")
