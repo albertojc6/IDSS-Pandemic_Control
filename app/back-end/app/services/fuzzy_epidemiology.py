@@ -41,6 +41,13 @@ class FuzzyEpidemiology:
         """
         Set up the fuzzy logic system with antecedents, consequents, and rules.
         """
+        def configure_five_levels(var, ranges, prefixes):
+            var[prefixes[0]] = fuzz.trimf(var.universe, ranges[0])
+            var[prefixes[1]] = fuzz.trimf(var.universe, ranges[1])
+            var[prefixes[2]] = fuzz.trimf(var.universe, ranges[2])
+            var[prefixes[3]] = fuzz.trimf(var.universe, ranges[3])
+            var[prefixes[4]] = fuzz.trimf(var.universe, ranges[4])
+
         # Define input and output variables
         self.ia = ctrl.Antecedent(np.arange(0, 10000, 1), 'ia')  # Cumulative incidence (per 100k)
         self.occupancy = ctrl.Antecedent(np.arange(0, 101, 1), 'occupancy')  # Hospital occupancy (%)
@@ -50,36 +57,29 @@ class FuzzyEpidemiology:
         self.density = ctrl.Antecedent(np.arange(0, 15001, 1), 'density')  # Density (inhab/km²)
         self.risk = ctrl.Consequent(np.arange(0, 101, 1), 'risk')  # Confinement risk (0-100)
 
-        # Membership functions
-        # IA
-        self.ia['Low'] = fuzz.trimf(self.ia.universe, [0, 0, 50])
-        self.ia['Medium'] = fuzz.trimf(self.ia.universe, [30, 100, 150])
-        self.ia['High'] = fuzz.trimf(self.ia.universe, [130, 200, 10000])
+        configure_five_levels(self.ia, 
+            [[0,0,25], [15,40,75], [60,100,140], [120,150,800], [170,250,10000]],
+            ['Very Low', 'Low', 'Moderate', 'High', 'Very High'])
 
-        # Hospital Occupancy
-        self.occupancy['Low'] = fuzz.trimf(self.occupancy.universe, [0, 0, 70])
-        self.occupancy['Moderate'] = fuzz.trimf(self.occupancy.universe, [60, 75, 80])
-        self.occupancy['Critical'] = fuzz.trimf(self.occupancy.universe, [75, 90, 100])
+        configure_five_levels(self.occupancy,
+            [[0,0,60], [50,60,70], [60,70,80], [70,80,90], [85,95,100]],
+            ['Very Low', 'Low', 'Moderate', 'High', 'Very High'])
 
-        # Mortality
-        self.mortality['Low'] = fuzz.trimf(self.mortality.universe, [0, 0, 10])
-        self.mortality['Medium'] = fuzz.trimf(self.mortality.universe, [5, 15, 25])
-        self.mortality['High'] = fuzz.trimf(self.mortality.universe, [15, 25, 100])
+        configure_five_levels(self.mortality,
+            [[0,0,10], [5,8,12], [10,13,17], [15,18,20], [20,25,2000]],
+            ['Very Low', 'Low', 'Moderate', 'High', 'Very High'])
 
-        # Lethality
-        self.lethality['Low'] = fuzz.trimf(self.lethality.universe, [0, 0, 3])
-        self.lethality['Medium'] = fuzz.trimf(self.lethality.universe, [1.5, 4, 6.5])
-        self.lethality['High'] = fuzz.trimf(self.lethality.universe, [5, 10, 100])
+        configure_five_levels(self.lethality,
+            [[0,0,1.5], [1,2.5,4], [3,5,7], [5,6.5,8], [7,10,100]],
+            ['Very Low', 'Low', 'Moderate', 'High', 'Very High'])
 
-        # Population >65
-        self.population65['Low'] = fuzz.trimf(self.population65.universe, [0, 0, 10])
-        self.population65['Medium'] = fuzz.trimf(self.population65.universe, [5, 15, 20])
-        self.population65['High'] = fuzz.trimf(self.population65.universe, [18, 30, 30])
+        configure_five_levels(self.population65,
+            [[0,0,7.5], [5,7.5,12.5], [10,12.5,17.5], [15,17.5,22.5], [20,25,100]],
+            ['Very Low', 'Low', 'Moderate', 'High', 'Very High'])
 
-        # Density
-        self.density['Low'] = fuzz.trimf(self.density.universe, [0, 0, 1500])
-        self.density['Medium'] = fuzz.trimf(self.density.universe, [1000, 2000, 3000])
-        self.density['High'] = fuzz.trimf(self.density.universe, [2500, 4000, 40000])
+        configure_five_levels(self.density,
+            [[0,0,500], [300,800,1200], [1000,2000,3000], [2500,4000,6000], [5000,8000,15000]],
+            ['Very Low', 'Low', 'Moderate', 'High', 'Very High'])
 
         # Risk
         self.risk['Very Low'] = fuzz.trimf(self.risk.universe, [0, 0, 20])
@@ -89,62 +89,61 @@ class FuzzyEpidemiology:
         self.risk['Very High'] = fuzz.trimf(self.risk.universe, [70, 85, 95])
         self.risk['Extreme'] = fuzz.trimf(self.risk.universe, [90, 100, 100])
 
-        # Define rules
-        rule1 = ctrl.Rule(
-            self.ia['High'] & self.occupancy['Critical'] & self.mortality['High'],
-            self.risk['Extreme']
-        )
-        rule2 = ctrl.Rule(
-            self.ia['Medium'] & self.occupancy['Moderate'] & (self.population65['High'] | self.density['High']) & 
-            (self.lethality['Low'] | self.lethality['Medium']),
-            self.risk['High']
-        )
-        rule3 = ctrl.Rule(
-            self.ia['Low'] & self.occupancy['Low'] & self.mortality['Low'] & self.lethality['Low'],
-            self.risk['Very Low']
-        )
-        rule4 = ctrl.Rule(
-            (self.ia['Medium'] | self.mortality['Medium']) & self.density['Medium'] & self.lethality['Low'],
-            self.risk['Moderate']
-        )
-        rule5 = ctrl.Rule(
-            self.occupancy['Critical'] & (self.population65['High'] | self.mortality['High']),
-            self.risk['Very High']
-        )
-        rule6 = ctrl.Rule(
-            self.ia['High'] & self.occupancy['Moderate'] & self.mortality['Medium'],
-            self.risk['High']
-        )
-        rule7 = ctrl.Rule(
-            self.ia['Medium'] & (self.population65['Medium'] | self.density['Medium']),
-            self.risk['Moderate']
-        )
-        rule8 = ctrl.Rule(
-            self.mortality['High'] & (self.ia['Low'] | self.occupancy['Low']),
-            self.risk['High']
-        )
-        rule9 = ctrl.Rule(
-            self.density['High'] & self.ia['Medium'],
-            self.risk['High']
-        )
-        rule10 = ctrl.Rule(
-            self.population65['High'] & self.lethality['High'],
-            self.risk['High']
-        )
-        rule11 = ctrl.Rule(
-            self.ia['High'] & self.occupancy['Low'] & self.lethality['Low'],
-            self.risk['Moderate']
-        )
-        rule12 = ctrl.Rule(
-            self.ia['Low'] | self.occupancy['Low'] | self.mortality['Low'],
-            self.risk['Low']
-        )
+        rules = [
+            # Rules for extreme scenarios
+            ctrl.Rule(self.ia['Very High'] & self.occupancy['Very High'], self.risk['Extreme']),
+            ctrl.Rule(self.occupancy['Very High'] & (self.mortality['Very High'] | self.lethality['Very High']), self.risk['Extreme']),
+            ctrl.Rule(self.ia['Very High'] & (self.density['Very High']|self.density['High']), self.risk['Very High']),
 
-        # Create control system
-        self.risk_ctrl = ctrl.ControlSystem([
-            rule1, rule2, rule3, rule4, rule5, rule6,
-            rule7, rule8, rule9, rule10, rule11, rule12
-        ])
+            # High combinations of 3 factors
+            ctrl.Rule(self.ia['High'] & self.occupancy['High'] & self.density['High'], self.risk['Very High']),
+            ctrl.Rule(self.population65['Very High'] & self.mortality['High'] & self.lethality['High'], self.risk['Very High']),
+            
+            # Scenarios with two high factors
+            ctrl.Rule(self.ia['High'] & self.occupancy['Moderate'], self.risk['High']),
+            ctrl.Rule(self.mortality['High'] & self.population65['High'], self.risk['High']),
+            ctrl.Rule((self.density['Very High']|self.density['High']) & self.ia['Moderate'], self.risk['High']),
+
+            # Moderate scenarios with compensations
+            ctrl.Rule(self.ia['Moderate'] & self.occupancy['Low'] & self.density['Moderate'], self.risk['Moderate']),
+            ctrl.Rule(self.mortality['Moderate'] & self.lethality['Low'], self.risk['Moderate']),
+            
+            # Specific interactions
+            ctrl.Rule((self.ia['Low'] | self.occupancy['Low']) & self.population65['Very High'], self.risk['Moderate']),
+
+            ctrl.Rule(self.density['High'] & self.lethality['Moderate'], self.risk['High']),
+            
+            # Controlled low risk scenarios
+            ctrl.Rule(self.ia['Low'] & self.occupancy['Very Low'] & self.mortality['Very Low'], self.risk['Very Low']),
+            ctrl.Rule(self.density['Low'] & self.lethality['Very Low'], self.risk['Low']),
+            
+            # Gradual transition rules
+            ctrl.Rule(self.ia['Moderate'] & self.occupancy['Low'] & self.mortality['Low'], self.risk['Low']),
+            ctrl.Rule(self.ia['Low'] & self.occupancy['Moderate'] & self.lethality['Moderate'], self.risk['Moderate']),
+
+            # Combinations with vulnerable population
+            ctrl.Rule(self.population65['High'] & (self.ia['Low'] | self.mortality['Low']), self.risk['Moderate']),
+            ctrl.Rule(self.population65['Very High'] & self.density['High'], self.risk['High']),
+
+            ctrl.Rule(self.lethality['Very High'] & self.mortality['Moderate'], self.risk['High']),
+
+            # High lethality + Low density
+            ctrl.Rule(self.lethality['Very High'] & self.density['Low'], self.risk['Moderate']),
+            
+            # High lethality + No vulnerable population
+            ctrl.Rule(self.lethality['Very High'] & self.population65['Very Low'], self.risk['High']),
+            
+            # High lethality with controlled incidence/occupancy
+            ctrl.Rule(self.lethality['Very High'] & self.ia['Low'] & self.occupancy['Very Low'], self.risk['Moderate']),
+            
+            # Cumulative effect of moderate factors
+            ctrl.Rule((self.ia['Moderate'] | self.mortality['Moderate']) & (self.occupancy['Moderate'] | self.lethality['Moderate']), self.risk['Moderate']),
+            
+            # Ultra-specific residual rule
+            ctrl.Rule((self.ia['Very Low'] & self.occupancy['Very Low']) | (self.occupancy['Very Low'] & self.mortality['Very Low']) | (self.ia['Very Low'] & self.lethality['Very Low']),
+                self.risk['Very Low'])
+        ]
+        self.risk_ctrl = ctrl.ControlSystem(rules)
 
     def _calculate_metrics(self, row):
         """
