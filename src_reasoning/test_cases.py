@@ -16,15 +16,15 @@ def create_test_cases():
     }
 
     # Crear DataFrame replicant les dades demogràfiques pels 3 escenaris
-    states = ['Artificial_High_No', 'Artificial_High_Selectiu', 'Artificial_High_Immediat']
+    states = ['1', '2', '3']
     demographic_data = pd.DataFrame([base_demo] * 3, index=states).reset_index().rename(columns={'index': 'state'})
 
     # Dades de prediccions pels 3 escenaris
     predictions_data = pd.DataFrame({
         'state': states,
-        'positiveIncrease': [500, 2000, 100000],  
+        'positiveIncrease': [500, 2000, 2000],  
         'hospitalizedIncrease': [0, 3000, 4500],  
-        'deathIncrease': [10, 300, 2000]          
+        'deathIncrease': [10, 300, 1000]          
     })
 
     # Assignar dades artificials
@@ -34,9 +34,9 @@ def create_test_cases():
     # Crear veïns artificials simplificats
     neighbor_data = pd.DataFrame({
         'state': states,
-        'Artificial_High_No': [0, 0, 0],
-        'Artificial_High_Selectiu': [0, 0, 0],
-        'Artificial_High_Immediat': [0, 0, 0]
+        '1': [0, 0, 0],
+        '2': [0, 0, 0],
+        '3': [0, 0, 0]
     })
     fuzzy_system.df_veins = neighbor_data
     fuzzy_system.veins_dict = {row['state']: [col for col in neighbor_data.columns if neighbor_data[col][i] == 1] 
@@ -48,7 +48,7 @@ def create_test_cases():
         if 'error' in result:
             print(f"\nTest Case - State: {state} - Error: {result['error']}")
         else:
-            print(f"\nTest Case - State: {state}")
+            print(f"\nTest Case: {state}")
             print(f"Input Metrics:")
             print(f"  IA: {result['metrics']['IA']:.2f}")
             print(f"  Ocupació (theta): {result['metrics']['theta']:.2f}")
