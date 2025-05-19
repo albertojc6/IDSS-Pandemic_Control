@@ -16,7 +16,7 @@
                 <div class="status-cards">
                     <div class="status-card">
                         <h3>Risk Level</h3>
-                        <p class="status-value {{ risk_level|float|round|int|string|lower }}">{{ "%.2f"|format(risk_level) }}</p>
+                        <p class="status-value {{ risk_level|float|round|int|string|lower }}">{{ "%.0f"|format(risk_level) }}/100</p>
                     </div>
                     <div class="status-card">
                         <h3>Confinement</h3>
@@ -43,23 +43,23 @@
                 <div class="status-cards">
                     <div class="status-card">
                         <h3>IA (Cumulative Incidence)</h3>
-                        <p class="status-value">{{ "%.2f"|format(ia) }}</p>
+                        <p class="status-value">{{ "%.2f"|format(ia) }} (x 100k hab)</p>
                     </div>
                     <div class="status-card">
                         <h3>θ (Hospital Occupancy)</h3>
-                        <p class="status-value">{{ "%.2f"|format(theta) }}</p>
+                        <p class="status-value">{{ "%.2f"|format(theta) }}%</p>
                     </div>
                     <div class="status-card">
                         <h3>π (Mortality)</h3>
-                        <p class="status-value">{{ "%.2f"|format(pi) }}</p>
+                        <p class="status-value">{{ "%.2f"|format(pi) }} (x 100k hab)</p>
                     </div>
                     <div class="status-card">
                         <h3>Lethality</h3>
-                        <p class="status-value">{{ "%.2f"|format(lethality) }}</p>
+                        <p class="status-value">{{ "%.2f"|format(lethality) }}%</p>
                     </div>
                     <div class="status-card">
                         <h3>Population >65</h3>
-                        <p class="status-value">{{ "%.2f"|format(pop_over_65) }}</p>
+                        <p class="status-value">{{ "%.2f"|format(pop_over_65) }}%</p>
                     </div>
                     <div class="status-card">
                         <h3>Density</h3>
