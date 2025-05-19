@@ -457,5 +457,11 @@ def decision_support():
         latest_prediction=latest_prediction,
         confinement_level=confinement_level,
         beds_recommendation=beds_recommendation,
-        vaccination_percentage=vaccination_percentage
+        vaccination_percentage=vaccination_percentage,
+        ia=latest_recommendation.ia,
+        theta=latest_recommendation.theta,
+        pi=latest_recommendation.pi,
+        lethality=latest_recommendation.lethality,
+        pop_over_65=latest_recommendation.pop_over_65,
+        density=latest_recommendation.density
     )

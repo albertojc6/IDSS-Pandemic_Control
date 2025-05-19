@@ -370,18 +370,6 @@ class FuzzyEpidemiology:
         # Convertir a diccionari per fàcil accés
         vaccination_dict = dict(zip(df_risk['state'], df_risk['vaccination_pct']))
         
-        # Imprimir taula de percentatges
-        print("\nTaula de percentatges de vacunació per estat:")
-        print("=" * 50)
-        print(f"{'Estat':<15} {'Risc':<10} {'% Vacunació':<15}")
-        print("-" * 50)
-        for _, row in df_risk.iterrows():
-            print(f"{row['state']:<15} {row['risk_level']:<10.2f} {row['vaccination_pct']:<15.2f}")
-        print("=" * 50)
-        print(f"Total risc: {total_risk:.2f}")
-        print(f"Suma percentatges: {df_risk['vaccination_pct'].sum():.2f}%")
-        print("=" * 50 + "\n")
-        
         return vaccination_dict
 
     def get_knowledge(self, state: str, date: date) -> Recommendation:
