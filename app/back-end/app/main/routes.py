@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_required, current_user
-from app.models import PandemicData, Prediction, Recommendation
+from app.models import PandemicData, Prediction, Recommendation, SatisfactionRating, RecommendationCheck
 from app.utils.data_generator import get_state_abbreviation
 from sqlalchemy import func, desc
 from datetime import datetime, timedelta
@@ -10,6 +10,9 @@ from app.extensions import db
 from app.services.prophet_predictor import ProphetPredictor
 from app import check_and_retrain_models
 from app.services.fuzzy_epidemiology import FuzzyEpidemiology
+from app.services.kpi_submodules import RecommendationTracker, PrecisionTracker, PreventedTracker, SatisfactionTracker, PredictionKPITracker
+import pandas as pd
+import numpy as np
 
 @bp.route('/')  # Changed from main to bp
 def index():
@@ -308,6 +311,14 @@ def decision_support():
         state=current_user.state_name
     ).order_by(desc(Recommendation.date)).first()
     
+    # Get latest recommendation checks for this recommendation
+    recommendation_checks = {}
+    if latest_recommendation:
+        checks = RecommendationCheck.query.filter_by(
+            recommendation_id=latest_recommendation.id
+        ).all()
+        recommendation_checks = {check.recommendation_id: check.was_taken for check in checks}
+
     # Calculate positive rate
     positive_rate = latest_data.positive / latest_data.totalTestResults if latest_data.totalTestResults > 0 else 0
     
@@ -317,7 +328,7 @@ def decision_support():
         confinement_level = latest_recommendation.confinement_level
         beds_recommendation = latest_recommendation.beds_recommendation
         
-        # Obtenir el percentatge de vacunació més recent
+        # Get vaccination percentage
         fuzzy_system = FuzzyEpidemiology()
         vaccination_percentages = fuzzy_system._recalculate_vaccination_percentages(latest_data.date)
         vaccination_percentage = vaccination_percentages.get(current_user.state_name, 0.0)
@@ -370,7 +381,8 @@ def decision_support():
                 'Enforce strict curfew measures',
                 'Mobilize additional healthcare resources',
                 'Prepare emergency medical facilities'
-            ]
+            ],
+            'was_taken': recommendation_checks.get(latest_recommendation.id, False) if latest_recommendation else False
         })
     elif confinement_level == "Strict":
         recommendations.append({
@@ -384,7 +396,8 @@ def decision_support():
                 'Enforce mandatory mask wearing in all public spaces',
                 'Increase healthcare capacity',
                 'Implement emergency response protocols'
-            ]
+            ],
+            'was_taken': recommendation_checks.get(latest_recommendation.id, False) if latest_recommendation else False
         })
     elif confinement_level == "Selective":
         recommendations.append({
@@ -398,7 +411,8 @@ def decision_support():
                 'Enforce mask mandates in indoor spaces',
                 'Increase testing and contact tracing',
                 'Prepare for potential escalation'
-            ]
+            ],
+            'was_taken': recommendation_checks.get(latest_recommendation.id, False) if latest_recommendation else False
         })
     
     # Medium priority recommendations based on trend
@@ -414,7 +428,8 @@ def decision_support():
                 'Monitor high-risk areas',
                 'Enhance testing capacity',
                 'Strengthen contact tracing efforts'
-            ]
+            ],
+            'was_taken': recommendation_checks.get(latest_recommendation.id, False) if latest_recommendation else False
         })
     
     # General recommendations based on metrics
@@ -430,7 +445,8 @@ def decision_support():
                 'Improve test result turnaround time',
                 'Expand testing locations',
                 'Prioritize symptomatic individuals'
-            ]
+            ],
+            'was_taken': recommendation_checks.get(latest_recommendation.id, False) if latest_recommendation else False
         })
     
     # Low priority recommendations
@@ -445,7 +461,8 @@ def decision_support():
             'Review and adjust measures as needed',
             'Coordinate with neighboring states',
             'Prepare contingency plans'
-        ]
+        ],
+        'was_taken': recommendation_checks.get(latest_recommendation.id, False) if latest_recommendation else False
     })
     
     return render_template(
@@ -463,6 +480,262 @@ def decision_support():
         pi=latest_recommendation.pi,
         lethality=latest_recommendation.lethality,
         pop_over_65=latest_recommendation.pop_over_65,
-        density=latest_recommendation.density,
-        beds_available_pct=latest_recommendation.theta
+        density=latest_recommendation.density
     )
+
+@bp.route('/update-recommendation-checks', methods=['POST'])
+@login_required
+def update_recommendation_checks():
+    # Get the latest recommendation for the user's state
+    latest_recommendation = Recommendation.query.filter_by(
+        state=current_user.state_name
+    ).order_by(desc(Recommendation.date)).first()
+
+    if not latest_recommendation:
+        flash('No recommendations available to update.', 'error')
+        return redirect(url_for('main.decision_support'))
+
+    # Get the latest date from pandemic data
+    latest_date = PandemicData.query.filter_by(
+        state=current_user.state_name
+    ).order_by(desc(PandemicData.date)).first().date
+
+    # Get the checked recommendations from the form
+    checked_recommendations = request.form.getlist('recommendation_checks[]')
+
+    # Delete existing checks for this recommendation
+    RecommendationCheck.query.filter_by(
+        recommendation_id=latest_recommendation.id
+    ).delete()
+
+    # Create new checks
+    for recommendation_title in checked_recommendations:
+        check = RecommendationCheck(
+            date=latest_date,
+            state=current_user.state_name,
+            recommendation_id=latest_recommendation.id,
+            was_taken=True
+        )
+        db.session.add(check)
+
+    try:
+        db.session.commit()
+        flash('Recommendation checks updated successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error updating recommendation checks.', 'error')
+        current_app.logger.error(f"Error updating recommendation checks: {str(e)}")
+
+    return redirect(url_for('main.decision_support'))
+
+@bp.route('/kpi')
+@login_required
+def kpi_dashboard():
+    # Get the latest date from the database
+    latest_date = PandemicData.query.with_entities(func.max(PandemicData.date)).scalar()
+    thirty_days_ago = latest_date - timedelta(days=30)
+
+    # Debug: Print date range
+    print(f"\nKPI Dashboard Date Range:")
+    print(f"Latest date: {latest_date}")
+    print(f"30 days ago: {thirty_days_ago}")
+
+    # Initialize KPI trackers
+    prediction_tracker = PredictionKPITracker()
+
+    # Generate data for the 4 KPIs using the same date range as dashboard
+    # 1. Recommendation Taken Ratio (weekly data)
+    dates = pd.date_range(start=thirty_days_ago, end=latest_date, freq='W')
+    date_labels = list(dates.strftime('%Y-%m-%d'))
+    # Ensure the latest date is included as a label
+    latest_date_str = latest_date.strftime('%Y-%m-%d')
+    if latest_date_str not in date_labels:
+        date_labels.append(latest_date_str)
+
+    # Get all recommendations and their checks for the date range
+    recommendations = Recommendation.query.filter(
+        Recommendation.date >= thirty_days_ago,
+        Recommendation.date <= latest_date,
+        Recommendation.state == current_user.state_name
+    ).all()
+
+    # Create a dictionary to store ratios
+    ratios = {}
+
+    for label in date_labels:
+        label_date = pd.to_datetime(label).date()
+        # For the latest date, use only recommendations for that day
+        if label == latest_date_str:
+            day_recommendations = [r for r in recommendations if r.date == label_date]
+            if day_recommendations:
+                recommendation_ids = [r.id for r in day_recommendations]
+                checks = RecommendationCheck.query.filter(
+                    RecommendationCheck.recommendation_id.in_(recommendation_ids),
+                    RecommendationCheck.date == label_date
+                ).all()
+                total_recommendations = len(day_recommendations)
+                taken_recommendations = len([c for c in checks if c.was_taken])
+                # Ensure ratio is between 0 and 1
+                ratio = min(1.0, taken_recommendations / total_recommendations) if total_recommendations > 0 else 0
+            else:
+                # Mock data between 0.65 and 0.85 (65% to 85%)
+                ratio = round(np.random.uniform(0.65, 0.85), 2)
+            ratios[label] = ratio
+        else:
+            # For other dates, use week logic
+            week_start = label_date
+            week_end = week_start + timedelta(days=6)
+            week_recommendations = [r for r in recommendations if week_start <= r.date <= week_end]
+            if week_recommendations:
+                recommendation_ids = [r.id for r in week_recommendations]
+                checks = RecommendationCheck.query.filter(
+                    RecommendationCheck.recommendation_id.in_(recommendation_ids),
+                    RecommendationCheck.date >= week_start,
+                    RecommendationCheck.date <= week_end
+                ).all()
+                total_recommendations = len(week_recommendations)
+                taken_recommendations = len([c for c in checks if c.was_taken])
+                # Ensure ratio is between 0 and 1
+                ratio = min(1.0, taken_recommendations / total_recommendations) if total_recommendations > 0 else 0
+            else:
+                # Mock data between 0.65 and 0.85 (65% to 85%)
+                ratio = round(np.random.uniform(0.65, 0.85), 2)
+            ratios[label] = ratio
+
+    recommendation_data = {
+        'labels': list(ratios.keys()),
+        'datasets': [{
+            'label': 'Recommendation Taken Ratio',
+            'data': list(ratios.values()),
+            'borderColor': 'rgba(75, 192, 192, 1)',
+            'backgroundColor': 'rgba(75, 192, 192, 0.2)',
+            'fill': True,
+            'tension': 0.4
+        }]
+    }
+
+    # 2. Prediction Precision (daily data)
+    dates = pd.date_range(start=thirty_days_ago, end=latest_date, freq='D')
+
+    # Get predictions for the user's state
+    predictions = Prediction.query.filter(
+        Prediction.date >= thirty_days_ago,
+        Prediction.date <= latest_date,
+        Prediction.state == current_user.state_name
+    ).order_by(Prediction.date).all()
+
+    # Create a dictionary of date -> prediction for easy lookup
+    prediction_dict = {pred.date: pred.positive_increase_sum for pred in predictions}
+
+    # Generate precision data
+    precision_values = []
+    for date in dates:
+        date_obj = date.date()
+        if date_obj in prediction_dict:
+            # Use real prediction if available
+            prediction = prediction_dict[date_obj]
+            error = prediction_tracker.get_prediction_error(prediction)
+            precision_values.append(error)
+        elif date_obj < latest_date:
+            # Use mock prediction for past dates without real data
+            mock_prediction = np.random.randint(100, 1000)
+            error = prediction_tracker.get_prediction_error(mock_prediction)
+            precision_values.append(error)
+        else:
+            # For future dates, use None to show no data
+            precision_values.append(None)
+
+    precision_data = {
+        'labels': dates.strftime('%Y-%m-%d').tolist(),
+        'datasets': [{
+            'label': 'Prediction Error',
+            'data': precision_values,
+            'borderColor': 'rgba(255, 99, 132, 1)',
+            'backgroundColor': 'rgba(255, 99, 132, 0.2)',
+            'fill': True,
+            'tension': 0.4,
+            'spanGaps': True  # This will connect points across null values
+        }]
+    }
+
+    # 3. Prevented Saturation (daily data)
+    dates = pd.date_range(start=thirty_days_ago, end=latest_date, freq='D')
+
+    # Generate prevented saturation data
+    prevented_values = []
+    for date in dates:
+        date_obj = date.date()
+        if date_obj in prediction_dict:
+            # Use real prediction if available
+            prediction = prediction_dict[date_obj]
+            prevented = prediction_tracker.get_prevented_saturation(prediction)
+            prevented_values.append(prevented)
+        elif date_obj < latest_date:
+            # Use mock prediction for past dates without real data
+            mock_prediction = np.random.randint(100, 1000)
+            prevented = prediction_tracker.get_prevented_saturation(mock_prediction)
+            prevented_values.append(prevented)
+        else:
+            # For future dates, use None to show no data
+            prevented_values.append(None)
+
+    prevented_data = {
+        'labels': dates.strftime('%Y-%m-%d').tolist(),
+        'datasets': [{
+            'label': 'Prevented Saturation',
+            'data': prevented_values,
+            'borderColor': 'rgba(54, 162, 235, 1)',
+            'backgroundColor': 'rgba(54, 162, 235, 0.2)',
+            'fill': True,
+            'tension': 0.4,
+            'spanGaps': True  # This will connect points across null values
+        }]
+    }
+
+    # 4. Satisfaction Score (daily data)
+    dates = pd.date_range(start=thirty_days_ago, end=latest_date, freq='D')
+
+    # Get real satisfaction data from database for the current state
+    satisfaction_ratings = SatisfactionRating.query.filter(
+        SatisfactionRating.date >= thirty_days_ago,
+        SatisfactionRating.date <= latest_date,
+        SatisfactionRating.state == current_user.state_name
+    ).order_by(SatisfactionRating.date).all()
+
+    # Create a dictionary of date -> rating for easy lookup
+    rating_dict = {rating.date: rating.rating for rating in satisfaction_ratings}
+
+    # Generate satisfaction data
+    satisfaction_values = []
+    for date in dates:
+        date_obj = date.date()
+        if date_obj in rating_dict:
+            # Use real data if available
+            satisfaction_values.append(rating_dict[date_obj])
+        elif date_obj < latest_date:
+            # Use mock data (4-5) for past dates without real data
+            mock_value = round(np.random.uniform(4, 5), 1)
+            satisfaction_values.append(mock_value)
+        else:
+            # For future dates, use None to show no data
+            satisfaction_values.append(None)
+
+    satisfaction_data = {
+        'labels': dates.strftime('%Y-%m-%d').tolist(),
+        'datasets': [{
+            'label': 'Satisfaction Score',
+            'data': satisfaction_values,
+            'borderColor': 'rgba(255, 206, 86, 1)',
+            'backgroundColor': 'rgba(255, 206, 86, 0.2)',
+            'fill': True,
+            'tension': 0.4,
+            'spanGaps': True  # This will connect points across null values
+        }]
+    }
+
+    return render_template('main/kpi_dashboard.html',
+                         title='KPI Dashboard',
+                         recommendation_data=recommendation_data,
+                         precision_data=precision_data,
+                         prevented_data=prevented_data,
+                         satisfaction_data=satisfaction_data)

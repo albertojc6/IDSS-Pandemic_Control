@@ -75,4 +75,9 @@ class DailyStatsForm(FlaskForm):
     Dose1_65Plus_Increase = IntegerField('New First Doses (65+)', validators=[InputRequired(), NumberRange(min=0)])
     Complete_65Plus_Increase = IntegerField('New Completed Vaccinations (65+)', validators=[InputRequired(), NumberRange(min=0)])
     
+    # Satisfaction rating
+    satisfaction_rating = FloatField('System Satisfaction Rating (1-5)', 
+                                   validators=[InputRequired(), NumberRange(min=1, max=5)],
+                                   description='Rate your satisfaction with the system\'s recommendations and support')
+    
     submit = SubmitField('Submit Daily Statistics')

@@ -1,7 +1,7 @@
 from flask import render_template, request, jsonify, flash, redirect, url_for, current_app
 from app.stats import bp
 from app.stats.forms import CovidStatsForm, DailyStatsForm
-from app.models import PandemicData, StaticStateData, Prediction
+from app.models import PandemicData, StaticStateData, Prediction, SatisfactionRating
 from app.utils.data_manager import import_csv_data, get_pandemic_data, get_states_list, get_time_series_data
 from app.extensions import db
 import os
@@ -178,61 +178,75 @@ def daily_stats():
                              title='Today\'s Statistics')
     
     if form.validate_on_submit():
-        # Calculate total values based on last day's data and new increases
-        positive = (last_day_data.positive + form.positiveIncrease.data) if last_day_data else form.positiveIncrease.data
-        totalTestResults = (last_day_data.totalTestResults + form.totalTestResultsIncrease.data) if last_day_data else form.totalTestResultsIncrease.data
-        death = (last_day_data.death + form.deathIncrease.data) if last_day_data else form.deathIncrease.data
-        total = positive + form.negativeIncrease.data
-        posNeg = total
-        
-        # Calculate vaccination totals and percentages
-        Dose1_Total = (last_day_data.Dose1_Total + form.Dose1_Increase.data) if last_day_data else form.Dose1_Increase.data
-        Complete_Total = (last_day_data.Complete_Total + form.Complete_Increase.data) if last_day_data else form.Complete_Increase.data
-        
-        # Calculate 65+ vaccination totals and percentages
-        Dose1_65Plus = (last_day_data.Dose1_65Plus + form.Dose1_65Plus_Increase.data) if last_day_data else form.Dose1_65Plus_Increase.data
-        Complete_65Plus = (last_day_data.Complete_65Plus + form.Complete_65Plus_Increase.data) if last_day_data else form.Complete_65Plus_Increase.data
-        
-        # Calculate percentages based on state population
-        Dose1_Total_pct = round((Dose1_Total / state_data.population_state) * 100, 1)
-        Complete_Total_pct = round((Complete_Total / state_data.population_state) * 100, 1)
-        
-        # Calculate 65+ percentages using the correct population denominator
-        Dose1_65Plus_pct = round((Dose1_65Plus / pop_65_plus) * 100, 1) if pop_65_plus > 0 else 0
-        Complete_65Plus_pct = round((Complete_65Plus / pop_65_plus) * 100, 1) if pop_65_plus > 0 else 0
-        
-        # Ensure percentages don't exceed 100%
-        Dose1_Total_pct = min(Dose1_Total_pct, 100)
-        Complete_Total_pct = min(Complete_Total_pct, 100)
-        Dose1_65Plus_pct = min(Dose1_65Plus_pct, 100)
-        Complete_65Plus_pct = min(Complete_65Plus_pct, 100)
-        
-        # Create new record
-        new_data = PandemicData(
-            date=today,
-            state=current_user.state_name,
-            positive=positive,
-            totalTestResults=totalTestResults,
-            death=death,
-            positiveIncrease=form.positiveIncrease.data,
-            negativeIncrease=form.negativeIncrease.data,
-            total=total,
-            totalTestResultsIncrease=form.totalTestResultsIncrease.data,
-            posNeg=posNeg,
-            deathIncrease=form.deathIncrease.data,
-            hospitalizedIncrease=form.hospitalizedIncrease.data,
-            Dose1_Total=Dose1_Total,
-            Dose1_Total_pct=Dose1_Total_pct,
-            Complete_Total=Complete_Total,
-            Complete_Total_pct=Complete_Total_pct,
-            Dose1_65Plus=Dose1_65Plus,
-            Dose1_65Plus_pct=Dose1_65Plus_pct,
-            Complete_65Plus=Complete_65Plus,
-            Complete_65Plus_pct=Complete_65Plus_pct
-        )
-        
         try:
+            # Start a transaction
+            db.session.begin_nested()
+            
+            # Calculate total values based on last day's data and new increases
+            positive = (last_day_data.positive + form.positiveIncrease.data) if last_day_data else form.positiveIncrease.data
+            totalTestResults = (last_day_data.totalTestResults + form.totalTestResultsIncrease.data) if last_day_data else form.totalTestResultsIncrease.data
+            death = (last_day_data.death + form.deathIncrease.data) if last_day_data else form.deathIncrease.data
+            total = positive + form.negativeIncrease.data
+            posNeg = total
+            
+            # Calculate vaccination totals and percentages
+            Dose1_Total = (last_day_data.Dose1_Total + form.Dose1_Increase.data) if last_day_data else form.Dose1_Increase.data
+            Complete_Total = (last_day_data.Complete_Total + form.Complete_Increase.data) if last_day_data else form.Complete_Increase.data
+            
+            # Calculate 65+ vaccination totals and percentages
+            Dose1_65Plus = (last_day_data.Dose1_65Plus + form.Dose1_65Plus_Increase.data) if last_day_data else form.Dose1_65Plus_Increase.data
+            Complete_65Plus = (last_day_data.Complete_65Plus + form.Complete_65Plus_Increase.data) if last_day_data else form.Complete_65Plus_Increase.data
+            
+            # Calculate percentages based on state population
+            Dose1_Total_pct = round((Dose1_Total / state_data.population_state) * 100, 1)
+            Complete_Total_pct = round((Complete_Total / state_data.population_state) * 100, 1)
+            
+            # Calculate 65+ percentages using the correct population denominator
+            Dose1_65Plus_pct = round((Dose1_65Plus / pop_65_plus) * 100, 1) if pop_65_plus > 0 else 0
+            Complete_65Plus_pct = round((Complete_65Plus / pop_65_plus) * 100, 1) if pop_65_plus > 0 else 0
+            
+            # Ensure percentages don't exceed 100%
+            Dose1_Total_pct = min(Dose1_Total_pct, 100)
+            Complete_Total_pct = min(Complete_Total_pct, 100)
+            Dose1_65Plus_pct = min(Dose1_65Plus_pct, 100)
+            Complete_65Plus_pct = min(Complete_65Plus_pct, 100)
+            
+            # Create new pandemic data record
+            new_data = PandemicData(
+                date=today,
+                state=current_user.state_name,
+                positive=positive,
+                totalTestResults=totalTestResults,
+                death=death,
+                positiveIncrease=form.positiveIncrease.data,
+                negativeIncrease=form.negativeIncrease.data,
+                total=total,
+                totalTestResultsIncrease=form.totalTestResultsIncrease.data,
+                posNeg=posNeg,
+                deathIncrease=form.deathIncrease.data,
+                hospitalizedIncrease=form.hospitalizedIncrease.data,
+                Dose1_Total=Dose1_Total,
+                Dose1_Total_pct=Dose1_Total_pct,
+                Complete_Total=Complete_Total,
+                Complete_Total_pct=Complete_Total_pct,
+                Dose1_65Plus=Dose1_65Plus,
+                Dose1_65Plus_pct=Dose1_65Plus_pct,
+                Complete_65Plus=Complete_65Plus,
+                Complete_65Plus_pct=Complete_65Plus_pct
+            )
+            
+            # Create new satisfaction rating record
+            new_rating = SatisfactionRating(
+                date=today,
+                state=current_user.state_name,
+                rating=form.satisfaction_rating.data
+            )
+            
+            # Add both records to the session
             db.session.add(new_data)
+            db.session.add(new_rating)
+            
+            # Commit the transaction
             db.session.commit()
             
             # Update predictions for the logged-in state
@@ -256,10 +270,10 @@ def daily_stats():
                 print(f'  - Confinement: {recommendation.confinement_level}')
                 print(f'  - Beds: {recommendation.beds_recommendation}')
                 print(f'  - Vaccination: {recommendation.vaccination_percentage}%')
-                flash('Daily statistics, predictions, and recommendations generated successfully!', 'success')
+                flash('Daily statistics, satisfaction rating, predictions, and recommendations generated successfully!', 'success')
             except Exception as e:
                 print(f'Error in prediction/recommendation generation: {str(e)}')
-                flash('Daily statistics submitted, but could not generate predictions and recommendations. Please try again later.', 'warning')
+                flash('Daily statistics and satisfaction rating submitted, but could not generate predictions and recommendations. Please try again later.', 'warning')
                 db.session.rollback()
             
             # After successful submission, show the submitted data
