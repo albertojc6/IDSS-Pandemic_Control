@@ -5,14 +5,14 @@ def create_test_cases():
     # Crear instància de FuzzyEpidemiology
     fuzzy_system = FuzzyEpidemiology()
 
-    # Dades demogràfiques base per a Artificial_High (New Mexico)
+    # Dades demogràfiques base 
     base_demo = {
-        'population_state': 2096829,  # New Mexico
+        'population_state': 2096829,  # Dades de Nou Mexic
         'pop_density_state': 17.27,
         'bedsTotal': 2.5,  
         'pop_0-9': 209682, 'pop_10-19': 209682, 'pop_20-29': 209682,
         'pop_30-39': 209682, 'pop_40-49': 209682, 'pop_50-59': 209682,
-        'pop_60-69': 209682, 'pop_70-79': 125809, 'pop_80+': 125809  # 12% de >65
+        'pop_60-69': 209682, 'pop_70-79': 125809, 'pop_80+': 125809 
     }
 
     # Crear DataFrame replicant les dades demogràfiques pels 3 escenaris
