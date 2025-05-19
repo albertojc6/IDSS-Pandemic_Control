@@ -63,6 +63,23 @@
                             </div>
                         </div>
 
+                        <!-- Satisfaction Rating Section -->
+                        <div class="section mb-3">
+                            <h5 class="section-title">⭐ System Satisfaction</h5>
+                            <div class="satisfaction-container">
+                                <p class="satisfaction-description">{{ form.satisfaction_rating.description }}</p>
+                                <div class="star-rating">
+                                    {% for i in range(1, 6) %}
+                                    <input type="radio" id="star{{ i }}" name="satisfaction_rating" value="{{ i }}" class="star-input" {% if form.satisfaction_rating.data == i %}checked{% endif %}>
+                                    <label for="star{{ i }}" class="star-label" title="{{ i }} stars">★</label>
+                                    {% endfor %}
+                                </div>
+                                {% for error in form.satisfaction_rating.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
                         <!-- Buttons -->
                         <div class="row mt-3">
                             <div class="col-12">
@@ -353,6 +370,46 @@
         font-size: 1.8rem;
         font-weight: 600;
         letter-spacing: 0.5px;
+    }
+
+    /* Satisfaction Rating Styles */
+    .satisfaction-container {
+        text-align: center;
+        padding: 1rem;
+    }
+
+    .satisfaction-description {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+
+    .star-rating {
+        display: inline-flex;
+        flex-direction: row-reverse;
+        gap: 0.3rem;
+    }
+
+    .star-input {
+        display: none;
+    }
+
+    .star-label {
+        cursor: pointer;
+        font-size: 2rem;
+        color: #ddd;
+        transition: color 0.2s ease;
+    }
+
+    .star-label:hover,
+    .star-label:hover ~ .star-label,
+    .star-input:checked ~ .star-label {
+        color: #ffd700;
+    }
+
+    .star-input:checked ~ .star-label:hover,
+    .star-input:checked ~ .star-label:hover ~ .star-label {
+        color: #ffed4a;
     }
 </style>
 

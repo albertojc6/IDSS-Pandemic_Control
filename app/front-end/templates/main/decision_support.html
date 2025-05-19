@@ -219,19 +219,38 @@
             <!-- Recommendations Section -->
             <div class="section-card">
                 <h2 class="section-title">Recommendations</h2>
-                <div class="recommendations-list">
-                    {% for recommendation in recommendations %}
-                    <div class="recommendation-card {{ recommendation.priority }}">
-                        <h3>{{ recommendation.title }}</h3>
-                        <p>{{ recommendation.description }}</p>
-                        <ul>
-                            {% for action in recommendation.actions %}
-                            <li>{{ action }}</li>
-                            {% endfor %}
-                        </ul>
+                <form id="recommendationForm" method="POST" action="{{ url_for('main.update_recommendation_checks') }}">
+                    <div class="recommendations-list">
+                        {% for recommendation in recommendations %}
+                        <div class="recommendation-card {{ recommendation.priority }}">
+                            <div class="recommendation-header">
+                                <h3>{{ recommendation.title }}</h3>
+                                <div class="recommendation-check">
+                                    <input type="checkbox" 
+                                           id="rec_{{ loop.index }}" 
+                                           name="recommendation_checks[]" 
+                                           value="{{ recommendation.title }}"
+                                           {% if recommendation.was_taken %}checked{% endif %}
+                                           class="recommendation-checkbox">
+                                    <label for="rec_{{ loop.index }}">Taken</label>
+                                </div>
+                            </div>
+                            <p>{{ recommendation.description }}</p>
+                            <ul>
+                                {% for action in recommendation.actions %}
+                                <li>{{ action }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
-                </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary update-btn">
+                            <span class="btn-icon">💾</span>
+                            Update Recommendations
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -478,6 +497,48 @@
         .prediction-cards {
             grid-template-columns: 1fr;
         }
+    }
+
+    .recommendation-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .recommendation-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .recommendation-checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+    .recommendation-check label {
+        color: #666;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .form-actions {
+        margin-top: 20px;
+        text-align: right;
+    }
+
+    .update-btn {
+        padding: 10px 20px;
+        font-size: 1.1em;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-icon {
+        font-size: 1.2em;
     }
 </style>
 {% endblock %}

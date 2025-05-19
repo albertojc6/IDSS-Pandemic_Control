@@ -263,6 +263,60 @@ class Recommendation(db.Model):
     def __repr__(self):
         return f'<Recommendation {self.state} {self.date}>'
 
+class SatisfactionRating(db.Model):
+    """
+    Model for storing daily satisfaction ratings from state health departments.
+    Ratings are on a 5-star scale (1-5).
+    """
+    __tablename__ = 'satisfaction_ratings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, nullable=False)
+    state = db.Column(db.String(50), nullable=False)
+    rating = db.Column(db.Float, nullable=False)  # Rating from 1 to 5
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<SatisfactionRating {self.state} {self.date}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'date': self.date.strftime('%Y-%m-%d') if self.date else None,
+            'state': self.state,
+            'rating': self.rating,
+            'created_at': self.created_at.isoformat()
+        }
+
+class RecommendationCheck(db.Model):
+    """
+    Model for tracking which recommendations were taken by state health departments.
+    """
+    __tablename__ = 'recommendation_checks'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, nullable=False)  # Date when recommendations were checked
+    state = db.Column(db.String(50), nullable=False)
+    recommendation_id = db.Column(db.Integer, db.ForeignKey('recommendations.id'), nullable=False)
+    was_taken = db.Column(db.Boolean, default=False)  # Whether the recommendation was taken
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship to Recommendation
+    recommendation = db.relationship('Recommendation', backref=db.backref('checks', lazy=True))
+    
+    def __repr__(self):
+        return f'<RecommendationCheck {self.state} {self.date}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'date': self.date.strftime('%Y-%m-%d') if self.date else None,
+            'state': self.state,
+            'recommendation_id': self.recommendation_id,
+            'was_taken': self.was_taken,
+            'created_at': self.created_at.isoformat()
+        }
+
 @login_manager.user_loader
 def load_user(user_id):
     """
