@@ -33,6 +33,37 @@
                 </div>
             </div>
 
+            <!-- Based on Section -->
+            <div class="section-card">
+                <h2 class="section-title">Based on</h2>
+                <div class="status-cards">
+                    <div class="status-card">
+                        <h3>IA (Cumulative Incidence)</h3>
+                        <p class="status-value">{{ "%.2f"|format(ia) }}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>θ (Hospital Occupancy)</h3>
+                        <p class="status-value">{{ "%.2f"|format(theta) }}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>π (Mortality)</h3>
+                        <p class="status-value">{{ "%.2f"|format(pi) }}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>Lethality</h3>
+                        <p class="status-value">{{ "%.2f"|format(lethality) }}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>Population >65</h3>
+                        <p class="status-value">{{ "%.2f"|format(pop_over_65) }}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>Density</h3>
+                        <p class="status-value">{{ "%.2f"|format(density) }}</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Predictions Section -->
             {% if latest_prediction %}
             <div class="section-card">
@@ -287,6 +318,11 @@
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 20px;
+    }
+
+    /* Estil específic per a la secció "Based on" */
+    .section-card:nth-of-type(2) .status-cards {
+        grid-template-columns: repeat(3, 1fr);
     }
 
     .status-card {
