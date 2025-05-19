@@ -62,13 +62,16 @@
         .dashboard-info h2 {
             margin-top: 0;
             color: var(--text-primary);
-            font-size: 0.9rem;
+            font-size: 2.2rem;
+            font-weight: 600;
+            margin-bottom: 15px;
         }
         
         .dashboard-info p {
-            margin: 8px 0;
             color: var(--text-secondary);
-            font-size: 0.85rem;
+            font-size: 1.2rem;
+            line-height: 1.5;
+            margin-bottom: 10px;
         }
         
         .header {
@@ -565,6 +568,38 @@
                 opacity: 1;
             }
         }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .chart-selector {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .selector-btn {
+            padding: 5px 15px;
+            border: 1px solid var(--button-bg);
+            background: white;
+            color: var(--button-bg);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .selector-btn.active {
+            background: var(--button-bg);
+            color: white;
+        }
+        
+        .selector-btn:hover {
+            background: var(--button-bg);
+            color: white;
+        }
     </style>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://d3js.org/topojson.v3.min.js"></script>
@@ -698,7 +733,13 @@
                 
                 <!-- Chart for daily cases -->
                 <div class="dashboard-card">
-                    <h3>Last Month New Cases Trend</h3>
+                    <div class="chart-header">
+                        <h3>Infected New Cases Trend</h3>
+                        <div class="chart-selector">
+                            <button class="selector-btn active" data-view="usa">USA</button>
+                            <button class="selector-btn" data-view="state">{{ current_user.state_name[:2]|upper }}</button>
+                        </div>
+                    </div>
                     <canvas id="casesChart" height="200"></canvas>
                 </div>
             </div>
@@ -755,79 +796,94 @@
         // Chart for daily cases
         if (serverData.national_daily_cases) {
             const ctx = document.getElementById('casesChart').getContext('2d');
-            const casesChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: serverData.national_daily_cases.map(item => item.date),
-                    datasets: [
-                        {
-                            label: 'USA New Cases',
-                            data: serverData.national_daily_cases.map(item => item.usa_cases),
-                            backgroundColor: 'rgba(45, 56, 156, 0.1)',
-                            borderColor: '#2d389c',
+            let casesChart;
+            
+            function createChart(dataType) {
+                const data = serverData.national_daily_cases;
+                const label = dataType === 'usa' ? 'USA New Cases' : '{{ current_user.state_name[:2]|upper }} New Cases';
+                const color = dataType === 'usa' ? '#2d389c' : '#4bc0c0';
+                
+                if (casesChart) {
+                    casesChart.destroy();
+                }
+                
+                casesChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.map(item => item.date),
+                        datasets: [{
+                            label: label,
+                            data: data.map(item => dataType === 'usa' ? item.usa_cases : item.state_cases),
+                            backgroundColor: `${color}1A`,
+                            borderColor: color,
                             borderWidth: 2,
                             tension: 0.4,
                             fill: true
-                        },
-                        {
-                            label: '{{ current_user.state_name[:2]|upper }} New Cases',
-                            data: serverData.national_daily_cases.map(item => item.state_cases),
-                            backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                            borderColor: '#4bc0c0',
-                            borderWidth: 2,
-                            tension: 0.4,
-                            fill: true
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
+                        }]
                     },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            align: 'end'
-                        },
-                        tooltip: {
+                    options: {
+                        responsive: true,
+                        interaction: {
                             mode: 'index',
                             intersect: false,
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed.y !== null) {
-                                        label += new Intl.NumberFormat('en-US').format(context.parsed.y);
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'New Cases'
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
                             },
-                            ticks: {
-                                callback: function(value) {
-                                    return new Intl.NumberFormat('en-US').format(value);
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += new Intl.NumberFormat('en-US').format(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
                                 }
                             }
                         },
-                        x: {
-                            grid: {
-                                display: false
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'New Cases'
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return new Intl.NumberFormat('en-US').format(value);
+                                    }
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
                             }
                         }
                     }
-                }
+                });
+            }
+            
+            // Initialize with USA data
+            createChart('usa');
+            
+            // Add click handlers for selector buttons
+            document.querySelectorAll('.selector-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    // Update active state
+                    document.querySelectorAll('.selector-btn').forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Update chart
+                    createChart(this.dataset.view);
+                });
             });
         }
         

@@ -318,7 +318,7 @@ def decision_support():
             recommendation_id=latest_recommendation.id
         ).all()
         recommendation_checks = {check.recommendation_id: check.was_taken for check in checks}
-
+    
     # Calculate positive rate
     positive_rate = latest_data.positive / latest_data.totalTestResults if latest_data.totalTestResults > 0 else 0
     

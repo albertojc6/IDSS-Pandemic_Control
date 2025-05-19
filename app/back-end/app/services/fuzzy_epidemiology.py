@@ -31,6 +31,13 @@ class FuzzyEpidemiology:
             neighbors = [neighbor for neighbor in self.df_neighbors.columns[1:] if row[neighbor] == 1]
             self.neighbors_dict[state] = neighbors
 
+        # Print neighbors for each state
+        print("\nEstats veïns per cada estat:")
+        print("=" * 50)
+        for state, neighbors in self.neighbors_dict.items():
+            print(f"{state:<15} ➔ {', '.join(neighbors)}")
+        print("=" * 50 + "\n")
+
         # Initialize fuzzy logic system
         self._setup_fuzzy_system()
         
@@ -248,13 +255,30 @@ class FuzzyEpidemiology:
 
         neighbors = self.neighbors_dict.get(state, [])
         available_neighbors = []
+        
+        print(f"\nAnàlisi de transferències per {state}:")
+        print("=" * 50)
+        print(f"Llits disponibles a {state}: {beds_available_pct:.2f}%")
+        print("-" * 50)
+        
         for neighbor in neighbors:
-            neighbor_data = self.combined_data[self.combined_data['state'] == neighbor]
+            neighbor_data = self.df_demographic[self.df_demographic['state'] == neighbor]
             if not neighbor_data.empty:
-                neighbor_pct = neighbor_data['beds_available_pct'].values[0]
-                if neighbor_pct >= 30:
+                # Calcular llits totals per al veí
+                beds_total2 = (neighbor_data['bedsTotal'].iloc[0] / 1000) * neighbor_data['population_state'].iloc[0]
+                print(f"\n{neighbor}:")
+                print(f"  - Llits totals (bedsTotal2): {beds_total2:.0f}")
+                print(f"  - Població: {neighbor_data['population_state'].iloc[0]:,.0f}")
+                print(f"  - Llits per 1000 habitants: {neighbor_data['bedsTotal'].iloc[0]:.2f}")
+                
+                if beds_total2 > 100:
                     available_neighbors.append(neighbor)
-
+                    print(f"  → Disponible per transferències (bedsTotal2 > 100)")
+                else:
+                    print(f"  → No disponible (bedsTotal2 <= 100)")
+        
+        print("=" * 50)
+        
         if available_neighbors:
             return f"Yes ➔ Neighbors: {', '.join(available_neighbors)}"
         return "No (no valid neighbors)"
@@ -440,7 +464,7 @@ class FuzzyEpidemiology:
 
         # Calculate bed availability
         self.combined_data['bedsTotal2'] = (self.combined_data['bedsTotal'] / 1000) * self.combined_data['population_state']
-        self.combined_data['bedsTotal3'] = self.combined_data['bedsTotal2'] - self.combined_data['hospitalizedIncrease']
+        self.combined_data['bedsTotal3'] = self.combined_data['bedsTotal2'] - 7 * self.combined_data['hospitalizedIncrease']
         self.combined_data['beds_available_pct'] = (self.combined_data['bedsTotal3'] / self.combined_data['bedsTotal2']) * 100
 
         # Check for possible transfers
