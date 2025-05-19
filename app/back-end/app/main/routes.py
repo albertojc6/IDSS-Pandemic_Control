@@ -463,5 +463,6 @@ def decision_support():
         pi=latest_recommendation.pi,
         lethality=latest_recommendation.lethality,
         pop_over_65=latest_recommendation.pop_over_65,
-        density=latest_recommendation.density
+        density=latest_recommendation.density,
+        beds_available_pct=latest_recommendation.theta
     )

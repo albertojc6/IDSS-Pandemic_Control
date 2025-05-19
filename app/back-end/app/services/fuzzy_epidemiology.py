@@ -244,6 +244,7 @@ class FuzzyEpidemiology:
             str: Transfer recommendation.
         """
         if beds_available_pct >= 50:
+            print(f"No need to transfer patients from {state} because there are {beds_available_pct}% beds available")
             return "Not needed"
 
         neighbors = self.neighbors_dict.get(state, [])
@@ -254,7 +255,6 @@ class FuzzyEpidemiology:
                 neighbor_pct = neighbor_data['beds_available_pct'].values[0]
                 if neighbor_pct >= 30:
                     available_neighbors.append(neighbor)
-
         if available_neighbors:
             return f"Yes ➔ Neighbors: {', '.join(available_neighbors)}"
         return "No (no valid neighbors)"
@@ -440,8 +440,11 @@ class FuzzyEpidemiology:
 
         # Calculate bed availability
         self.combined_data['bedsTotal2'] = (self.combined_data['bedsTotal'] / 1000) * self.combined_data['population_state']
-        self.combined_data['bedsTotal3'] = self.combined_data['bedsTotal2'] - self.combined_data['hospitalizedIncrease']
+        #print(f"Beds total: {self.combined_data['bedsTotal2'].iloc[0]}")
+        self.combined_data['bedsTotal3'] = self.combined_data['bedsTotal2'] - 7*self.combined_data['hospitalizedIncrease']
+        #print(f"Beds available: {self.combined_data['bedsTotal3'].iloc[0]}")
         self.combined_data['beds_available_pct'] = (self.combined_data['bedsTotal3'] / self.combined_data['bedsTotal2']) * 100
+        #print(f"Beds available percentage: {self.combined_data['beds_available_pct'].iloc[0]}%")
 
         # Check for possible transfers
         beds_available_pct = float(self.combined_data['beds_available_pct'].iloc[0])
