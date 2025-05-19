@@ -318,7 +318,7 @@ def decision_support():
             recommendation_id=latest_recommendation.id
         ).all()
         recommendation_checks = {check.recommendation_id: check.was_taken for check in checks}
-    
+
     # Calculate positive rate
     positive_rate = latest_data.positive / latest_data.totalTestResults if latest_data.totalTestResults > 0 else 0
     
@@ -474,7 +474,13 @@ def decision_support():
         latest_prediction=latest_prediction,
         confinement_level=confinement_level,
         beds_recommendation=beds_recommendation,
-        vaccination_percentage=vaccination_percentage
+        vaccination_percentage=vaccination_percentage,
+        ia=latest_recommendation.ia,
+        theta=latest_recommendation.theta,
+        pi=latest_recommendation.pi,
+        lethality=latest_recommendation.lethality,
+        pop_over_65=latest_recommendation.pop_over_65,
+        density=latest_recommendation.density
     )
 
 @bp.route('/update-recommendation-checks', methods=['POST'])
@@ -484,24 +490,24 @@ def update_recommendation_checks():
     latest_recommendation = Recommendation.query.filter_by(
         state=current_user.state_name
     ).order_by(desc(Recommendation.date)).first()
-    
+
     if not latest_recommendation:
         flash('No recommendations available to update.', 'error')
         return redirect(url_for('main.decision_support'))
-    
+
     # Get the latest date from pandemic data
     latest_date = PandemicData.query.filter_by(
         state=current_user.state_name
     ).order_by(desc(PandemicData.date)).first().date
-    
+
     # Get the checked recommendations from the form
     checked_recommendations = request.form.getlist('recommendation_checks[]')
-    
+
     # Delete existing checks for this recommendation
     RecommendationCheck.query.filter_by(
         recommendation_id=latest_recommendation.id
     ).delete()
-    
+
     # Create new checks
     for recommendation_title in checked_recommendations:
         check = RecommendationCheck(
@@ -511,7 +517,7 @@ def update_recommendation_checks():
             was_taken=True
         )
         db.session.add(check)
-    
+
     try:
         db.session.commit()
         flash('Recommendation checks updated successfully.', 'success')
@@ -519,7 +525,7 @@ def update_recommendation_checks():
         db.session.rollback()
         flash('Error updating recommendation checks.', 'error')
         current_app.logger.error(f"Error updating recommendation checks: {str(e)}")
-    
+
     return redirect(url_for('main.decision_support'))
 
 @bp.route('/kpi')
@@ -536,7 +542,7 @@ def kpi_dashboard():
 
     # Initialize KPI trackers
     prediction_tracker = PredictionKPITracker()
-    
+
     # Generate data for the 4 KPIs using the same date range as dashboard
     # 1. Recommendation Taken Ratio (weekly data)
     dates = pd.date_range(start=thirty_days_ago, end=latest_date, freq='W')
@@ -610,17 +616,17 @@ def kpi_dashboard():
 
     # 2. Prediction Precision (daily data)
     dates = pd.date_range(start=thirty_days_ago, end=latest_date, freq='D')
-    
+
     # Get predictions for the user's state
     predictions = Prediction.query.filter(
         Prediction.date >= thirty_days_ago,
         Prediction.date <= latest_date,
         Prediction.state == current_user.state_name
     ).order_by(Prediction.date).all()
-    
+
     # Create a dictionary of date -> prediction for easy lookup
     prediction_dict = {pred.date: pred.positive_increase_sum for pred in predictions}
-    
+
     # Generate precision data
     precision_values = []
     for date in dates:
@@ -638,7 +644,7 @@ def kpi_dashboard():
         else:
             # For future dates, use None to show no data
             precision_values.append(None)
-    
+
     precision_data = {
         'labels': dates.strftime('%Y-%m-%d').tolist(),
         'datasets': [{
@@ -654,7 +660,7 @@ def kpi_dashboard():
 
     # 3. Prevented Saturation (daily data)
     dates = pd.date_range(start=thirty_days_ago, end=latest_date, freq='D')
-    
+
     # Generate prevented saturation data
     prevented_values = []
     for date in dates:
@@ -672,7 +678,7 @@ def kpi_dashboard():
         else:
             # For future dates, use None to show no data
             prevented_values.append(None)
-    
+
     prevented_data = {
         'labels': dates.strftime('%Y-%m-%d').tolist(),
         'datasets': [{
@@ -688,17 +694,17 @@ def kpi_dashboard():
 
     # 4. Satisfaction Score (daily data)
     dates = pd.date_range(start=thirty_days_ago, end=latest_date, freq='D')
-    
+
     # Get real satisfaction data from database for the current state
     satisfaction_ratings = SatisfactionRating.query.filter(
         SatisfactionRating.date >= thirty_days_ago,
         SatisfactionRating.date <= latest_date,
         SatisfactionRating.state == current_user.state_name
     ).order_by(SatisfactionRating.date).all()
-    
+
     # Create a dictionary of date -> rating for easy lookup
     rating_dict = {rating.date: rating.rating for rating in satisfaction_ratings}
-    
+
     # Generate satisfaction data
     satisfaction_values = []
     for date in dates:
@@ -713,7 +719,7 @@ def kpi_dashboard():
         else:
             # For future dates, use None to show no data
             satisfaction_values.append(None)
-    
+
     satisfaction_data = {
         'labels': dates.strftime('%Y-%m-%d').tolist(),
         'datasets': [{

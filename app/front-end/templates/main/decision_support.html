@@ -24,11 +24,42 @@
                     </div>
                     <div class="status-card">
                         <h3>Beds Status</h3>
-                        <p class="status-value">{{ beds_recommendation }}</p>
+                        <p class="status-value {{ 'not-needed' if beds_recommendation == 'Not needed' else 'needed' }}">{{ beds_recommendation }}</p>
                     </div>
                     <div class="status-card">
                         <h3>Vaccination %</h3>
                         <p class="status-value">{{ "%.2f"|format(vaccination_percentage) }}%</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Based on Section -->
+            <div class="section-card">
+                <h2 class="section-title">Based on</h2>
+                <div class="status-cards">
+                    <div class="status-card">
+                        <h3>IA (Cumulative Incidence)</h3>
+                        <p class="status-value">{{ "%.2f"|format(ia) }}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>θ (Hospital Occupancy)</h3>
+                        <p class="status-value">{{ "%.2f"|format(theta) }}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>π (Mortality)</h3>
+                        <p class="status-value">{{ "%.2f"|format(pi) }}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>Lethality</h3>
+                        <p class="status-value">{{ "%.2f"|format(lethality) }}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>Population >65</h3>
+                        <p class="status-value">{{ "%.2f"|format(pop_over_65) }}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>Density</h3>
+                        <p class="status-value">{{ "%.2f"|format(density) }}</p>
                     </div>
                 </div>
             </div>
@@ -308,6 +339,11 @@
         gap: 20px;
     }
 
+    /* Estil específic per a la secció "Based on" */
+    .section-card:nth-of-type(2) .status-cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
     .status-card {
         background: #f8f9fa;
         padding: 20px;
@@ -345,6 +381,10 @@
     .status-value.strict { color: #F44336; }
     .status-value.immediate { color: #D32F2F; }
     .status-value.no { color: #4CAF50; }
+    
+    /* Estils per al bed status */
+    .status-value.not-needed { color: #4CAF50; }
+    .status-value.needed { color: #F44336; }
     
     /* Estils per al risc numèric */
     .status-value.0 { color: #4CAF50; }
