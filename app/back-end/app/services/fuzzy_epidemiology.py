@@ -243,7 +243,7 @@ class FuzzyEpidemiology:
         Returns:
             str: Transfer recommendation.
         """
-        if beds_available_pct >= 10:
+        if beds_available_pct >= 50:
             return "Not needed"
 
         neighbors = self.neighbors_dict.get(state, [])
