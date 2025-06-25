@@ -76,5 +76,3 @@ python back-end/run.py
 - **Machine Learning:** Prophet, scikit-learn
 
 ---
-
-*If you would like to showcase your dashboard, feel free to add a screenshot above. We hope you find this project helpful!*
