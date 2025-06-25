@@ -1,0 +1,925 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="decision-support-container">
+    <!-- Load Chart.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
+    <h1 class="main-title">Decision Support System for {{ current_user.state_name }}</h1>
+    
+    <div class="content-grid">
+        <!-- Left Column -->
+        <div class="left-column">
+            <!-- Current Status Section -->
+            <div class="section-card">
+                <h2 class="section-title">Current Status</h2>
+                <div class="status-cards">
+                    <div class="status-card">
+                        <h3>Risk Level</h3>
+                        <p class="status-value {{ risk_level|float|round|int|string|lower }}">{{ "%.0f"|format(risk_level) }}/100</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>Confinement</h3>
+                        <p class="status-value {{ confinement_level|lower }}">{{ confinement_level }}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>Possible Bed Transfers</h3>
+                        {% if beds_recommendation.startswith('Yes') %}
+                        <p class="status-value needed clickable" onclick="showTransferStates('{{ beds_recommendation }}')">Yes (click on it)</p>
+                        {% else %}
+                        <p class="status-value not-needed">Not needed</p>
+                        {% endif %}
+                    </div>
+                    <div class="status-card">
+                        <h3>Vaccination %</h3>
+                        <p class="status-value">{{ "%.2f"|format(vaccination_percentage) }}%</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Based on Section -->
+            <div class="section-card">
+                <h2 class="section-title">Based on</h2>
+                <div class="status-cards">
+                    <div class="status-card">
+                        <h3>IA (Cumulative Incidence)</h3>
+                        <p class="status-value">{{ "%.2f"|format(ia) }} (x 100k hab)</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>θ (Hospital Occupancy)</h3>
+                        <p class="status-value">{{ "%.2f"|format(theta) }}%</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>π (Mortality)</h3>
+                        <p class="status-value">{{ "%.2f"|format(pi) }} (x 100k hab)</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>Lethality</h3>
+                        <p class="status-value">{{ "%.2f"|format(lethality) }}%</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>Population >65</h3>
+                        <p class="status-value">{{ "%.2f"|format(pop_over_65) }}%</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>Density</h3>
+                        <p class="status-value">{{ "%.2f"|format(density) }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Predictions Section -->
+            {% if latest_prediction %}
+            <div class="section-card">
+                <h2 class="section-title">Predictions</h2>
+                <p class="forecast-subtitle">7-Day Total</p>
+                <div class="prediction-cards">
+                    <div class="prediction-card">
+                        <h3>Positive Cases</h3>
+                        <p class="prediction-value">{{ latest_prediction.positive_increase_sum }}</p>
+                    </div>
+                    <div class="prediction-card">
+                        <h3>Hospitalizations</h3>
+                        <p class="prediction-value">{{ latest_prediction.hospitalized_increase_sum }}</p>
+                    </div>
+                    <div class="prediction-card">
+                        <h3>Deaths</h3>
+                        <p class="prediction-value">{{ latest_prediction.death_increase_sum }}</p>
+                    </div>
+                </div>
+                <p class="prediction-date">Predictions as of {{ latest_prediction.date.strftime('%Y-%m-%d') }}</p>
+
+                <!-- Daily Predictions Dashboard -->
+                <div class="daily-predictions-dashboard">
+                    <p class="forecast-subtitle">Daily Breakdown</p>
+                    <div class="plot-container">
+                        <canvas id="predictionPlot"></canvas>
+                    </div>
+                    <!-- Data container -->
+                    <script id="prediction-data" type="application/json">
+                        {
+                            "positiveData": {{ latest_prediction.positive_daily|tojson|safe }},
+                            "hospitalizedData": {{ latest_prediction.hospitalized_daily|tojson|safe }},
+                            "deathData": {{ latest_prediction.death_daily|tojson|safe }},
+                            "predictionDate": "{{ latest_prediction.date.strftime('%Y-%m-%d') }}"
+                        }
+                    </script>
+                    <!-- Chart initialization -->
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            // Get the data from the JSON script tag
+                            const templateData = JSON.parse(document.getElementById('prediction-data').textContent);
+                            const ctx = document.getElementById('predictionPlot').getContext('2d');
+                            const predictionDate = new Date(templateData.predictionDate);
+                            
+                            // Generate dates for x-axis
+                            const dates = Array.from({length: 7}, (_, i) => {
+                                const date = new Date(predictionDate);
+                                date.setDate(date.getDate() + i);
+                                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            });
+
+                            new Chart(ctx, {
+                                type: 'line',
+                                data: {
+                                    labels: dates,
+                                    datasets: [
+                                        {
+                                            label: 'Positive Cases',
+                                            data: templateData.positiveData,
+                                            borderColor: '#2196F3',
+                                            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                                            borderWidth: 2,
+                                            tension: 0.3,
+                                            fill: true,
+                                            pointBackgroundColor: '#2196F3'
+                                        },
+                                        {
+                                            label: 'Hospitalizations',
+                                            data: templateData.hospitalizedData,
+                                            borderColor: '#FF9800',
+                                            backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                                            borderWidth: 2,
+                                            tension: 0.3,
+                                            fill: true,
+                                            pointBackgroundColor: '#FF9800'
+                                        },
+                                        {
+                                            label: 'Deaths',
+                                            data: templateData.deathData,
+                                            borderColor: '#F44336',
+                                            backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                                            borderWidth: 2,
+                                            tension: 0.3,
+                                            fill: true,
+                                            pointBackgroundColor: '#F44336'
+                                        }
+                                    ]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    interaction: {
+                                        intersect: false,
+                                        mode: 'index'
+                                    },
+                                    plugins: {
+                                        legend: {
+                                            position: 'top',
+                                            labels: {
+                                                padding: 20,
+                                                font: {
+                                                    size: 12,
+                                                    weight: 'bold'
+                                                }
+                                            }
+                                        },
+                                        title: {
+                                            display: true,
+                                            text: '7-Day COVID-19 Forecast',
+                                            font: {
+                                                size: 16,
+                                                weight: 'bold'
+                                            },
+                                            padding: {
+                                                top: 10,
+                                                bottom: 30
+                                            }
+                                        },
+                                        tooltip: {
+                                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                            titleColor: '#2c3e50',
+                                            bodyColor: '#2c3e50',
+                                            borderColor: '#e1e1e1',
+                                            borderWidth: 1,
+                                            padding: 10,
+                                            displayColors: true,
+                                            callbacks: {
+                                                label: function(context) {
+                                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString();
+                                                }
+                                            }
+                                        }
+                                    },
+                                    scales: {
+                                        y: {
+                                            beginAtZero: true,
+                                            title: {
+                                                display: true,
+                                                text: 'Number of Cases',
+                                                font: {
+                                                    weight: 'bold'
+                                                },
+                                                padding: {
+                                                    bottom: 10
+                                                }
+                                            },
+                                            grid: {
+                                                color: 'rgba(0, 0, 0, 0.1)',
+                                                drawBorder: false
+                                            },
+                                            ticks: {
+                                                callback: function(value) {
+                                                    return value.toLocaleString();
+                                                }
+                                            }
+                                        },
+                                        x: {
+                                            title: {
+                                                display: true,
+                                                text: 'Date',
+                                                font: {
+                                                    weight: 'bold'
+                                                },
+                                                padding: {
+                                                    top: 10
+                                                }
+                                            },
+                                            grid: {
+                                                display: false
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                        });
+                    </script>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column -->
+        <div class="right-column">
+            <!-- Recommendations Section -->
+            <div class="section-card">
+                <h2 class="section-title">Recommendations</h2>
+                <div class="recommendations-list">
+                    {% if beds_recommendation.startswith('Yes') %}
+                    <div class="recommendation-card high">
+                        <h3>Urgent: Patient Transfer Coordination</h3>
+                        <p>Due to the current bed capacity situation, immediate coordination with neighboring states is required to ensure proper patient care.</p>
+                        <ul>
+                            <li>Contact the healthcare authorities of the following states to arrange patient transfers: {{ beds_recommendation.split('➔')[1].strip() }}</li>
+                            <li>Establish a clear protocol for patient transfer, including transportation and medical documentation</li>
+                            <li>Coordinate with local hospitals to identify patients suitable for transfer</li>
+                            <li>Ensure continuous monitoring of bed availability in receiving states</li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% for recommendation in recommendations %}
+                    <div class="recommendation-card {{ recommendation.priority }}">
+                        <h3>{{ recommendation.title }}</h3>
+                        <p>{{ recommendation.description }}</p>
+                        <ul>
+                            {% for action in recommendation.actions %}
+                            <li>{{ action }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Afegir abans del tancament del body -->
+<div id="transferModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3>Possible Transfer States</h3>
+        <div class="transfer-content">
+            <div id="usMap" class="us-map"></div>
+            <div id="transferStatesList"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .decision-support-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .main-title {
+        text-align: center;
+        color: #2c3e50;
+        margin-bottom: 30px;
+        font-size: 2.2em;
+        font-weight: 600;
+    }
+
+    .content-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 30px;
+        margin-top: 20px;
+    }
+
+    .section-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+
+    .section-title {
+        color: #2c3e50;
+        font-size: 1.5em;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+
+    .forecast-subtitle {
+        color: #666;
+        font-size: 1.1em;
+        margin: 0 0 15px 0;
+        font-weight: 500;
+        text-align: left;
+    }
+
+    .status-cards {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+
+    /* Estil específic per a la secció "Based on" */
+    .section-card:nth-of-type(2) .status-cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .status-card {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        transition: transform 0.2s;
+    }
+
+    .status-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .status-card h3 {
+        color: #666;
+        font-size: 1.1em;
+        margin-bottom: 10px;
+    }
+
+    .status-value {
+        font-size: 24px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+
+    .status-value.low { color: #4CAF50; }
+    .status-value.medium { color: #FFC107; }
+    .status-value.high { color: #FF9800; }
+    .status-value.critical { color: #F44336; }
+    .status-value.increasing { color: #F44336; }
+    .status-value.decreasing { color: #4CAF50; }
+    .status-value.stable { color: #2196F3; }
+    
+    /* Estils per als nous estats */
+    .status-value.selective { color: #FF9800; }
+    .status-value.strict { color: #F44336; }
+    .status-value.immediate { color: #D32F2F; }
+    .status-value.no { color: #4CAF50; }
+    
+    /* Estils per al bed status */
+    .status-value.not-needed { color: #4CAF50; }
+    .status-value.needed { color: #F44336; }
+    
+    /* Estils per al risc numèric */
+    .status-value.0 { color: #4CAF50; }
+    .status-value.1 { color: #4CAF50; }
+    .status-value.2 { color: #8BC34A; }
+    .status-value.3 { color: #FFC107; }
+    .status-value.4 { color: #FF9800; }
+    .status-value.5 { color: #F44336; }
+    .status-value.6 { color: #D32F2F; }
+    .status-value.7 { color: #B71C1C; }
+    .status-value.8 { color: #7F0000; }
+    .status-value.9 { color: #4A0000; }
+    .status-value.10 { color: #000000; }
+
+    .forecast-description {
+        text-align: center;
+        color: #666;
+        font-size: 1.1em;
+        margin: -10px 0 20px 0;
+        font-style: italic;
+    }
+
+    .prediction-cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .prediction-card {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        transition: transform 0.2s;
+    }
+
+    .prediction-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .prediction-card h3 {
+        color: #666;
+        font-size: 1.1em;
+        margin-bottom: 10px;
+    }
+
+    .prediction-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #2c3e50;
+        margin: 10px 0;
+    }
+
+    .prediction-date {
+        text-align: center;
+        color: #666;
+        margin-top: 20px;
+        font-style: italic;
+    }
+
+    .recommendations-list {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .recommendation-card {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        transition: transform 0.2s;
+    }
+
+    .recommendation-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .recommendation-card.high {
+        border-left: 4px solid #F44336;
+    }
+
+    .recommendation-card.medium {
+        border-left: 4px solid #FF9800;
+    }
+
+    .recommendation-card.low {
+        border-left: 4px solid #2196F3;
+    }
+
+    .recommendation-card h3 {
+        color: #2c3e50;
+        margin-top: 0;
+        margin-bottom: 10px;
+        font-size: 1.2em;
+    }
+
+    .recommendation-card p {
+        color: #666;
+        margin-bottom: 15px;
+    }
+
+    .recommendation-card ul {
+        margin: 0;
+        padding-left: 20px;
+    }
+
+    .recommendation-card li {
+        color: #666;
+        margin-bottom: 8px;
+        line-height: 1.4;
+    }
+
+    .daily-predictions-dashboard {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+    }
+
+    .dashboard-title {
+        color: #2c3e50;
+        font-size: 1.3em;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .plot-container {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        position: relative;
+        width: 100%;
+        height: 500px;
+    }
+
+    #predictionPlot {
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    @media (max-width: 1200px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .status-cards,
+        .prediction-cards {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Estils per al modal */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+        background-color: #fefefe;
+        margin: 15% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+        max-width: 500px;
+        border-radius: 8px;
+        position: relative;
+    }
+
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .close:hover {
+        color: black;
+    }
+
+    .clickable {
+        cursor: pointer;
+        text-decoration: underline;
+    }
+
+    .transfer-content {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        margin-top: 15px;
+    }
+
+    .us-map {
+        width: 100%;
+        height: 300px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .state {
+        fill: #e0e0e0;
+        stroke: #fff;
+        stroke-width: 1;
+        transition: fill 0.3s;
+    }
+
+    .state.affected {
+        fill: #F44336;
+    }
+
+    .state.available {
+        fill: #4CAF50;
+    }
+
+    #transferStatesList {
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+    }
+
+    #transferStatesList p {
+        margin: 0;
+        font-size: 1.1em;
+        color: #2c3e50;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const canvas = document.getElementById('predictionPlot');
+    if (!canvas) {
+        console.error('Canvas element not found');
+        return;
+    }
+
+    // Log all available data attributes
+    console.log('Available data attributes:', canvas.dataset);
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        console.error('Could not get canvas context');
+        return;
+    }
+
+    try {
+        // Parse all data with error checking
+        let positiveData, hospitalizedData, deathData, predictionDate;
+        
+        try {
+            predictionDate = new Date(canvas.dataset.predictionDate);
+            if (isNaN(predictionDate.getTime())) {
+                throw new Error('Invalid date');
+            }
+        } catch (e) {
+            console.error('Error parsing prediction date:', canvas.dataset.predictionDate);
+            return;
+        }
+
+        try {
+            positiveData = JSON.parse(canvas.dataset.positiveDaily);
+            if (!Array.isArray(positiveData)) {
+                throw new Error('Not an array');
+            }
+        } catch (e) {
+            console.error('Error parsing positive data:', canvas.dataset.positiveDaily);
+            return;
+        }
+
+        try {
+            hospitalizedData = JSON.parse(canvas.dataset.hospitalizedDaily);
+            if (!Array.isArray(hospitalizedData)) {
+                throw new Error('Not an array');
+            }
+        } catch (e) {
+            console.error('Error parsing hospitalized data:', canvas.dataset.hospitalizedDaily);
+            return;
+        }
+
+        try {
+            deathData = JSON.parse(canvas.dataset.deathDaily);
+            if (!Array.isArray(deathData)) {
+                throw new Error('Not an array');
+            }
+        } catch (e) {
+            console.error('Error parsing death data:', canvas.dataset.deathDaily);
+            return;
+        }
+
+        // Log successfully parsed data
+        console.log('Successfully parsed data:', {
+            positiveData,
+            hospitalizedData,
+            deathData,
+            predictionDate
+        });
+        
+        // Generate dates for x-axis
+        const dates = Array.from({length: 7}, (_, i) => {
+            const date = new Date(predictionDate);
+            date.setDate(date.getDate() + i);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        });
+
+        // Create chart with error handling
+        try {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: 'Positive Cases',
+                            data: positiveData,
+                            borderColor: '#2196F3',
+                            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: '#2196F3'
+                        },
+                        {
+                            label: 'Hospitalizations',
+                            data: hospitalizedData,
+                            borderColor: '#FF9800',
+                            backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: '#FF9800'
+                        },
+                        {
+                            label: 'Deaths',
+                            data: deathData,
+                            borderColor: '#F44336',
+                            backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: '#F44336'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                padding: 20,
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: '7-Day COVID-19 Forecast',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            padding: {
+                                top: 10,
+                                bottom: 30
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            titleColor: '#2c3e50',
+                            bodyColor: '#2c3e50',
+                            borderColor: '#e1e1e1',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: true,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Cases',
+                                font: {
+                                    weight: 'bold'
+                                },
+                                padding: {
+                                    bottom: 10
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date',
+                                font: {
+                                    weight: 'bold'
+                                },
+                                padding: {
+                                    top: 10
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('Chart created successfully');
+        } catch (e) {
+            console.error('Error creating chart:', e);
+        }
+    } catch (error) {
+        console.error('General error:', error);
+        // Log raw data for debugging
+        console.log('Raw data:', {
+            positiveDaily: canvas.dataset.positiveDaily,
+            hospitalizedDaily: canvas.dataset.hospitalizedDaily,
+            deathDaily: canvas.dataset.deathDaily,
+            predictionDate: canvas.dataset.predictionDate
+        });
+    }
+});
+
+function showTransferStates(recommendation) {
+    const modal = document.getElementById('transferModal');
+    const statesList = document.getElementById('transferStatesList');
+    const mapContainer = document.getElementById('usMap');
+    
+    // Extreure els estats de la recomanació
+    const states = recommendation.split('➔')[1].trim();
+    const availableStates = states.split(', ').map(state => state.trim());
+    
+    // Crear la llista d'estats
+    statesList.innerHTML = `<p>Available states: ${states}</p>`;
+    
+    // Carregar el mapa SVG
+    fetch('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json')
+        .then(response => response.json())
+        .then(data => {
+            const width = mapContainer.clientWidth;
+            const height = mapContainer.clientHeight;
+            
+            // Crear el SVG
+            const svg = d3.select(mapContainer)
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Crear la projecció
+            const projection = d3.geoAlbersUsa()
+                .fitSize([width, height], topojson.feature(data, data.objects.states));
+            
+            // Crear el path generator
+            const path = d3.geoPath().projection(projection);
+            
+            // Afegir els estats
+            svg.append('g')
+                .selectAll('path')
+                .data(topojson.feature(data, data.objects.states).features)
+                .enter()
+                .append('path')
+                .attr('d', path)
+                .attr('class', d => {
+                    if (d.properties.name === '{{ current_user.state_name }}') {
+                        return 'state affected';
+                    } else if (availableStates.includes(d.properties.name)) {
+                        return 'state available';
+                    }
+                    return 'state';
+                });
+        });
+    
+    // Mostrar el modal
+    modal.style.display = "block";
+    
+    // Tancar el modal quan es fa clic a la X
+    const closeBtn = document.getElementsByClassName("close")[0];
+    closeBtn.onclick = function() {
+        modal.style.display = "none";
+        // Netejar el mapa quan es tanca
+        mapContainer.innerHTML = '';
+    }
+    
+    // Tancar el modal quan es fa clic fora
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+            // Netejar el mapa quan es tanca
+            mapContainer.innerHTML = '';
+        }
+    }
+}
+</script>
+
+<!-- Afegir les dependències de D3.js i TopoJSON -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://unpkg.com/topojson@3"></script>
+{% endblock %} 

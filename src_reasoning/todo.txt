@@ -1,3 +1,0 @@
-La classe ha de tenir un mètode que rebi l'estat, el dia i les prediccions dels 7 dies futurs, 
-i retorni les variables clau i les recomanacions. NO una matriu per tots els estats.
-
